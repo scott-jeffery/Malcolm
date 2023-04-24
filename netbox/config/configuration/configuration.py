@@ -110,6 +110,8 @@ BANNER_LOGIN = environ.get('BANNER_LOGIN', '')
 # BASE_PATH = 'netbox/'
 BASE_PATH = environ.get('BASE_PATH', '')
 
+DEVELOPER = 'true'
+
 # Maximum number of days to retain logged changes. Set to 0 to retain changes indefinitely. (Default: 90)
 CHANGELOG_RETENTION = int(environ.get('CHANGELOG_RETENTION', 90))
 
