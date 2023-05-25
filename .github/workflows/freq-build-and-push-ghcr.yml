@@ -5,13 +5,16 @@ on:
     branches:
       - main
       - development
-      - kubernetes
     paths:
       - 'freq-server/**'
       - 'Dockerfiles/freq.Dockerfile'
       - 'shared/bin/*'
+      - '!shared/bin/agg-init.sh'
+      - '!shared/bin/common-init.sh'
+      - '!shared/bin/sensor-init.sh'
       - '!shared/bin/configure-interfaces.py'
       - '!shared/bin/configure-capture.py'
+      - '!shared/bin/zeek*'
       - '.trigger_workflow_build'
   workflow_dispatch:
   repository_dispatch:

@@ -25,6 +25,7 @@ function finish {
     rmdir -- "$LOCK_DIR" || echo "Failed to remove lock directory '$LOCK_DIR'" >&2
 }
 
+mkdir -p -- "$(dirname "$LOCK_DIR")"
 if mkdir -- "$LOCK_DIR" 2>/dev/null; then
     trap finish EXIT
 
