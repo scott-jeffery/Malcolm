@@ -1,0 +1,6 @@
+Metadata-Version: 2.1
+Name: malcolm
+Version: 0.1
+Summary: An example NetBox plugin
+Author: Melanie Pierce
+License: Apache 2.0
