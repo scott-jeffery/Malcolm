@@ -56,6 +56,8 @@ class Constants:
     TIME_SYNC_HTPDATE_COMMAND = '/usr/sbin/htpdate -4 -a -b -l -s'
     TIME_SYNC_NTP_CONFIG = '/etc/ntp.conf'
 
+    SSHD_CONFIG_FILE = "/etc/ssh/sshd_config"
+
     MSG_CONFIG_MODE = 'Configuration Mode'
     MSG_BACKGROUND_TITLE = 'Sensor Configuration'
     MSG_CONFIG_HOST = ('Hostname', 'Configure sensor hostname')
@@ -406,12 +408,15 @@ def main():
                 # configure SSH authentication options
                 code = d.yesno(Constants.MSG_CONFIG_SSH_SUCCESS)
                 if (code == Dialog.OK):
-                    with open('/etc/ssh/ssh_config', 'r') as f:
-                        for line in f:
-                            if line.startswith("PasswordAuthentication") or line.startswith("#   PasswordAuthentication"):
+                    password_re = re.compile(r'^\s*#*\s*PasswordAuthentication\s+(yes|no)')
+                    with fileinput.FileInput(Constants.SSHD_CONFIG_FILE, inplace=True, backup='.bak') as file:
+                        for line in file:
+                            if password_re.match(line):
                                 line = "PasswordAuthentication yes"
-                            else:
-                                pass
+                            print(line)
+                    # restart the ssh process
+                    run_subprocess('/bin/systemctl restart ssh')
+
             else:
                 # interface IP address configuration #################################################################################################
 
