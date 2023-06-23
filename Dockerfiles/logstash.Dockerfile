@@ -15,6 +15,7 @@ ENV DEFAULT_UID $DEFAULT_UID
 ENV DEFAULT_GID $DEFAULT_GID
 ENV PUSER "logstash"
 ENV PGROUP "logstash"
+ENV PUSER_CHOWN "/usr/share/logstash/vendor"
 ENV PUSER_PRIV_DROP true
 ENV PUSER_RLIMIT_UNLOCK true
 
@@ -31,6 +32,7 @@ ARG LOGSTASH_OPENSEARCH_OUTPUT_PIPELINE_ADDRESSES=internal-os,external-os
 ARG LOGSTASH_NETBOX_ENRICHMENT=false
 ARG LOGSTASH_NETBOX_ENRICHMENT_VERBOSE=false
 ARG LOGSTASH_NETBOX_ENRICHMENT_LOOKUP_SERVICE=true
+ARG LOGSTASH_NETBOX_AUTO_POPULATE=false
 
 ENV LOGSTASH_ENRICHMENT_PIPELINE $LOGSTASH_ENRICHMENT_PIPELINE
 ENV LOGSTASH_PARSE_PIPELINE_ADDRESSES $LOGSTASH_PARSE_PIPELINE_ADDRESSES
@@ -40,6 +42,7 @@ ENV LOGSTASH_OPENSEARCH_OUTPUT_PIPELINE_ADDRESSES $LOGSTASH_OPENSEARCH_OUTPUT_PI
 ENV LOGSTASH_NETBOX_ENRICHMENT $LOGSTASH_NETBOX_ENRICHMENT
 ENV LOGSTASH_NETBOX_ENRICHMENT_VERBOSE $LOGSTASH_NETBOX_ENRICHMENT_VERBOSE
 ENV LOGSTASH_NETBOX_ENRICHMENT_LOOKUP_SERVICE $LOGSTASH_NETBOX_ENRICHMENT_LOOKUP_SERVICE
+ENV LOGSTASH_NETBOX_AUTO_POPULATE $LOGSTASH_NETBOX_AUTO_POPULATE
 
 USER root
 
@@ -61,6 +64,7 @@ RUN set -x && \
     export JAVA_HOME=/usr/share/logstash/jdk && \
     /usr/share/logstash/vendor/jruby/bin/jruby -S gem install bundler && \
     echo "gem 'lru_cache'" >> /usr/share/logstash/Gemfile && \
+    echo "gem 'fuzzy-string-match'" >> /usr/share/logstash/Gemfile && \
     /usr/share/logstash/bin/ruby -S bundle install && \
     logstash-plugin install --preserve logstash-filter-translate logstash-filter-cidr logstash-filter-dns \
                                        logstash-filter-json logstash-filter-prune logstash-filter-http \
@@ -104,8 +108,6 @@ RUN bash -c "chmod --silent 755 /usr/local/bin/*.sh /usr/local/bin/*.py || true"
         /usr/share/logstash/malcolm-patterns \
         /usr/share/logstash/malcolm-ruby \
         /logstash-persistent-queue && \
-    # trying to see if things still work if these are owned by root (to avoid a costly chown on container startup)
-    chown --silent -R root:root /usr/share/logstash/vendor/* && \
     echo "Retrieving and parsing Wireshark manufacturer database..." && \
     python3 /usr/local/bin/manuf-oui-parse.py -o /etc/vendor_macs.yaml && \
     echo "Retrieving JA3 fingerprint lists..." && \

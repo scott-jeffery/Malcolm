@@ -2,9 +2,9 @@
 
 This document outlines how to install [Malcolm]({{ site.github.repository_url }}) and [Hedgehog Linux](hedgehog.md) using the project's installer ISOs. These instructions apply to installing this software both on a "bare metal" system or in a virtual machine environment using VMware, VirtualBox, QEMU/KVM, etc.
 
-The Malcolm and Hedgehog Linux installers as described in these instructions are intended to be used to **replace** the existing operating system, if any, of the respective systems onto which they are installed, and, as such, are designed to require as little user input as possible. For this reason, there are NO user prompts and confirmations about partitioning and reformatting hard disks for use by the operating system. The installer assumes that all non-removable storage media (eg., SSD, HDD, NVMe, etc.) are available for use and ⛔🆘😭💀 ***will partition and format them without warning*** 💀😭🆘⛔.
+The Malcolm and Hedgehog Linux installers as described in these instructions are intended to be used to **replace** the existing operating system (if any) of the respective systems onto which they are installed; and, as such, are designed to require as little user input as possible. For this reason, there are NO user prompts or confirmations about partitioning and reformatting hard disks for use by the operating system. The installer assumes that all non-removable storage media (eg., SSD, HDD, NVMe, etc.) are available for use and ⛔🆘😭💀 ***will partition and format them without warning*** 💀😭🆘⛔.
 
-In contrast to using the ISO installer, Malcolm can also be installed "natively" on any x86_64 platform that can run Docker. See the [installation example using Ubuntu 22.04 LTS](ubuntu-install-example.md#InstallationExample) for that method of installation and configuration, or [Windows host system configuration](host-config-windows.md#HostSystemConfigWindows) and [macOS host system configuration](host-config-macos.md#HostSystemConfigMac) for those platforms.
+In contrast to using the ISO installer, Malcolm can also be installed "natively" on any x86_64 platform capable of running Docker. See the [installation example using Ubuntu 22.04 LTS](ubuntu-install-example.md#InstallationExample) for that method of installation and configuration, or [Windows host system configuration](host-config-windows.md#HostSystemConfigWindows) and [macOS host system configuration](host-config-macos.md#HostSystemConfigMac) for those platforms.
 
 ### <a name="TableOfContents"></a> Table of Contents
 
@@ -44,7 +44,7 @@ While official downloads of the Malcolm installer ISO are not provided, an **uno
 
 Various methods can be used to write the contents of an installer ISO image to a USB flash drive. One simple free and open-source application for doing so [Etcher](https://www.balena.io/etcher), which can be used on Windows, macOS and Linux platforms.
 
-Alternatively, specific instructions may be provided by your operating system (e.g., [Arch Linux](https://wiki.archlinux.org/title/USB_flash_installation_medium), [Debian Linux](https://www.debian.org/releases/stable/amd64/ch04s03.en.html), [Ubuntu Linux](https://ubuntu.com/tutorials/create-a-usb-stick-on-ubuntu#1-overview)). 
+Alternatively, instructions specific to a particular operating system may be found online (e.g., [Arch Linux](https://wiki.archlinux.org/title/USB_flash_installation_medium), [Debian Linux](https://www.debian.org/releases/stable/amd64/ch04s03.en.html), [Ubuntu Linux](https://ubuntu.com/tutorials/create-a-usb-stick-on-ubuntu#1-overview)).
 
 Using one of these methods, write the Malcolm and Hedgehog Linux installer ISOs to two 8GB or larger USB flash drives, respectively.
 
@@ -95,7 +95,7 @@ After making your selection for the type of Malcolm install to perform, the inst
 
 * **Hostname** - the name of the Malcolm system used to identify itself on the network
 * **Domain name** - (optional) the name of the local network domain
-* **Root password** – (optional) a password for the privileged root account which is rarely needed; if unspecified, the non-privileged user account will be added to the `sudo` group
+* **Root password** – (optional) a password for the privileged root account, which is rarely needed; if unspecified, the non-privileged user account will be added to the `sudo` group
 * **User name** the name for the non-privileged service account user account under which the Malcolm runs
 * **User password** – a password for the non-privileged user account
 * **Encryption password** – (optional) if the encrypted installation option was selected at boot, the encryption password must be entered every time the system boots
@@ -223,7 +223,7 @@ The [configuration and tuning](malcolm-config.md#ConfigAndTuning) wizard's quest
         + `all`: preserve flagged files in `./zeek-logs/extract_files/quarantine` and all other extracted files in `./zeek-logs/extract_files/preserved`
         + `none`: preserve no extracted files
 * Expose web interface for downloading preserved files?
-    - Answering **Y** enables access to the Zeek-extracted files path through the means of a simple HTTPS directory server at `https://<Malcolm host or IP address>/extracted-files/`. Beware that Zeek-extracted files may contain malware.
+    - Answering **Y** enables access to the Zeek-extracted files path through the means of a simple HTTPS directory server at **https://<Malcolm host or IP address>/extracted-files/**. Beware that Zeek-extracted files may contain malware.
 * Enter AES-256-CBC encryption password for downloaded preserved files (or leave blank for unencrypted)
     - If a password is specified here, Zeek-extracted files downloaded as described under the previous question will be AES-256-CBC-encrypted in an `openssl enc`-compatible format (e.g., `openssl enc -aes-256-cbc -d -in example.exe.encrypted -out example.exe`).
 * Scan extracted files with ClamAV?
@@ -242,6 +242,8 @@ The [configuration and tuning](malcolm-config.md#ConfigAndTuning) wizard's quest
     - Answer **Y** if you would like to use [NetBox](https://netbox.dev/), a suite for modeling and documenting modern networks, to maintain an inventory of your network assets.    
 * Should Malcolm enrich network traffic using NetBox?
     - Answer **Y** to [cross-reference](asset-interaction-analysis.md#AssetInteractionAnalysis) network traffic logs your NetBox asset inventory.
+* Should Malcolm automatically populate NetBox inventory based on observed network traffic?
+    - Answer **Y** to [populate the NetBox inventory](asset-interaction-analysis.md#NetBoxPopPassive) based on observed network traffic. Autopopulation is **not** recommended: [manual inventory population](asset-interaction-analysis.md#NetBoxPopManual) is the preferred method to create an accurate representation of the intended network design.
 * Specify default NetBox site name
     - NetBox has the concept of [sites](https://demo.netbox.dev/static/docs/core-functionality/sites-and-racks/). Sites can have overlapping IP address ranges, of course. This default site name will be used as a query parameter for these enrichment lookups.
 * Should Malcolm capture live network traffic to PCAP files for analysis with Arkime?
@@ -610,7 +612,7 @@ zeek:zeekctl                     RUNNING   pid 6502, uptime 0:03:17
 
 The easiest way to verify that network traffic is being captured by the sensor and forwarded to Malcolm is through Malcolm's Arkime [Sessions](arkime.md#ArkimeSessions) interface.
 
-If you are logged into the Malcolm [desktop environment](#MalcolmDesktop), click the Arkime icon (**🦉**) in the top panel. If you're connecting from another browser, connect to `https://<Malcolm host or IP address>`.
+If you are logged into the Malcolm [desktop environment](#MalcolmDesktop), click the Arkime icon (**🦉**) in the top panel. If you're connecting from another browser, connect to **https://<Malcolm host or IP address>**.
 
 As Malcolm is using [self-signed TLS certificates](authsetup.md#TLSCerts), you will likely have to confirm an exception in your browser to allow the self-signed certificates to proceed. Enter the credentials you specified when you [configured authentication](#MalcolmAuthSetup).
 

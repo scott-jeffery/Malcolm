@@ -2,7 +2,7 @@
 
 ![Malcolm Network Diagram](./images/malcolm_network_diagram.png)
 
-Malcolm processes network traffic data in the form of packet capture (docs/PCAP) files or Zeek logs. A [sensor](live-analysis.md#Hedgehog) (packet capture appliance) monitors network traffic mirrored to it over a SPAN port on a network switch or router, or by using a network TAP device. [Zeek](https://www.zeek.org/index.html) logs and [Arkime](https://arkime.com/) sessions are generated containing important session metadata from the traffic observed, which are then securely forwarded to a Malcolm instance. Full PCAP files are optionally stored locally on the sensor device for later examination.
+Malcolm processes network traffic data in the form of packet capture (PCAP) files or Zeek logs. A [sensor](live-analysis.md#Hedgehog) (packet capture appliance) monitors network traffic mirrored to it over a SPAN port on a network switch or router, or by using a network TAP device. [Zeek](https://www.zeek.org/index.html) logs and [Arkime](https://arkime.com/) sessions are generated containing important session metadata from the traffic observed, which are then securely forwarded to a Malcolm instance. Full PCAP files are optionally stored locally on the sensor device for later examination.
 
 Malcolm parses the network session data and enriches it with additional lookups and mappings including GeoIP mapping, hardware manufacturer lookups from [organizationally unique identifiers (docs/OUI)](http://standards-oui.ieee.org/oui/oui.txt) in MAC addresses, assigning names to [network segments and hosts](asset-interaction-analysis.md#AssetInteractionAnalysis) based on a user-defined asset inventory, performing [TLS fingerprinting](https://engineering.salesforce.com/tls-fingerprinting-with-ja3-and-ja3s-247362855967), and many others.
 
@@ -68,7 +68,7 @@ Malcolm can also easily be deployed locally on an ordinary consumer workstation 
             * [Screenshots](dashboards.md#PrebuiltVisualizationsGallery)
         + [Building your own visualizations and dashboards](dashboards.md#BuildDashboard)
             * [Screenshots](dashboards.md#NewVisualizationsGallery)
-* [Search Queries in Arkime and OpenSearch](queries-cheat-sheet.md#SearchCheatSheet)
+* [Search Queries in Arkime and OpenSearch Dashboards](queries-cheat-sheet.md#SearchCheatSheet)
 * Other Malcolm features
     - [Automatic file extraction and scanning](file-scanning.md#ZeekFileExtraction)
     - [OpenSearch index management](index-management.md#IndexManagement)
@@ -84,10 +84,11 @@ Malcolm can also easily be deployed locally on an ordinary consumer workstation 
     - [Asset Interaction Analysis](asset-interaction-analysis.md#AssetInteractionAnalysis)
         + [Enriching network traffic metadata via NetBox lookups](asset-interaction-analysis.md#NetBoxEnrichment)
         + [Compare and highlight discrepancies between NetBox inventory and observed network traffic](asset-interaction-analysis.md#NetBoxCompare)
-        + [Compare NetBox inventory with database of known vulnerabilities](asset-interaction-analysis.md#NetBoxVuln)
         + Populating the NetBox inventory
+            * [Manually](asset-interaction-analysis.md#NetBoxPopManual)
             * [Via passively-gathered network traffic metadata](asset-interaction-analysis.md#NetBoxPopPassive)
             * [Via active discovery](asset-interaction-analysis.md#NetBoxPopActive)
+        + [Compare NetBox inventory with database of known vulnerabilities](asset-interaction-analysis.md#NetBoxVuln)
         + [Backup and restore](asset-interaction-analysis.md#NetBoxBackup)
     - [CyberChef](cyberchef.md#CyberChef)
     - [API](api.md#API)
@@ -103,6 +104,7 @@ Malcolm can also easily be deployed locally on an ordinary consumer workstation 
     - [Deployment Example](kubernetes.md#Example)
     - [Future Enhancements](kubernetes.md#Future)
     - [Deploying Malcolm on Amazon Elastic Kubernetes Service (EKS)](kubernetes-eks.md#KubernetesEKS)
+* [Deploying Malcolm in Other Third-Party Environments](third-party-envs.md#ThirdPartyEnv)
 * [Hardening](hardening.md#Hardening)
     - [Compliance Exceptions](hardening.md#ComplianceExceptions)
 * [Installation example using Ubuntu 22.04 LTS](ubuntu-install-example.md#InstallationExample)
