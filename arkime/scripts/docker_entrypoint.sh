@@ -23,6 +23,11 @@ CAPTURE_INTERFACE=${PCAP_IFACE:-}
 LIVE_CAPTURE=${ARKIME_LIVE_CAPTURE:-false}
 VIEWER_PORT=${ARKIME_VIEWER_PORT:-8005}
 NODE_NAME=${PCAP_NODE_NAME:-malcolm}
+ARKIME_EXPOSE_WISE_GUI=${ARKIME_EXPOSE_WISE_GUI-"false"}
+ARKIME_ALLOW_WISE_GUI_CONFIG=${ARKIME_ALLOW_WISE_GUI_CONFIG-"false"}
+ARKIME_WISE_CONFIG_FILE="${ARKIME_DIR}"/etc/wise.ini
+ARKIME_WISE_SERVICE_SCRIPT=/opt/wise_service.sh
+
 
 MALCOLM_PROFILE=${MALCOLM_PROFILE:-"malcolm"}
 OPENSEARCH_URL_FINAL=${OPENSEARCH_URL:-"http://opensearch:9200"}
@@ -57,7 +62,7 @@ if ( [[ "$OPENSEARCH_PRIMARY" == "opensearch-remote" ]] || [[ "$OPENSEARCH_PRIMA
     OPENSEARCH_URL_FINAL="${PROTOCOL}${NEW_USER}:${NEW_PASSWORD}@${HOSTPORT}"
 fi
 
-# iff config.ini does not exist but config.orig.ini does, use it as a basis and modify based on env. vars
+# if config.ini does not exist but config.orig.ini does, use it as a basis and modify based on env. vars
 if [[ ! -f "${ARKIME_CONFIG_FILE}" ]] && [[ -r "${ARKIME_DIR}"/etc/config.orig.ini ]]; then
     cp "${ARKIME_DIR}"/etc/config.orig.ini "${ARKIME_CONFIG_FILE}"
 
@@ -186,6 +191,14 @@ if [[ ! -f "${ARKIME_CONFIG_FILE}" ]] && [[ -r "${ARKIME_DIR}"/etc/config.orig.i
     chmod 600 "${ARKIME_CONFIG_FILE}" || true
     [[ -n ${PUID} ]] && chown -f ${PUID} "${ARKIME_CONFIG_FILE}" || true
     [[ -n ${PGID} ]] && chown -f :${PGID} "${ARKIME_CONFIG_FILE}" || true
+fi
+if [[ ${ARKIME_EXPOSE_WISE_GUI}  == "true" ]]; then
+  sed -i "s|^\(elasticsearch=\).*|\1"${OPENSEARCH_URL_FINAL}"|" "${ARKIME_WISE_CONFIG_FILE}"
+  sed -i "s|^\(wiseHost=\).*|\1""0.0.0.0""|" "${ARKIME_WISE_CONFIG_FILE}"
+  if [[ ${ARKIME_ALLOW_WISE_GUI_CONFIG}  == "true" ]]; then
+    sed -i "s|^\(\s*\$ARKIME_DIR\/bin\/node wiseService.js\).*|\1"" --webconfig --insecure -c $ARKIME_DIR/etc/wise.ini""|" "${ARKIME_WISE_SERVICE_SCRIPT}"
+  fi
+
 fi
 
 unset OPENSEARCH_URL_FINAL
