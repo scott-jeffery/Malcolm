@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 
 
 # for files (sort -V (natural)) under /zeek that:
@@ -39,7 +39,7 @@ if mkdir $LOCKDIR; then
   # get new logs ready for processing
   cd "$ZEEK_LOGS_DIR"
   find . -path ./processed -prune -o -path ./current -prune -o -path ./upload -prune -o -path ./extract_files -prune -o -path ./live -prune -o -type f -exec file --separator '|' --mime-type "{}" \; | grep -P "(application/gzip|application/x-gzip|application/x-7z-compressed|application/x-bzip2|application/x-cpio|application/x-lzip|application/x-lzma|application/x-rar-compressed|application/x-tar|application/x-xz|application/zip|application/x-ms-evtx|application/octet-stream)" | sort -V | \
-    xargs -n 1 -P $FILEBEAT_PREPARE_PROCESS_COUNT -I '{}' bash -c '
+    xargs -P $FILEBEAT_PREPARE_PROCESS_COUNT -I '{}' bash -c '
 
     # separate filename and mime type
     FILENAME="$( echo "{}" | awk -F"|" "{print \$1}" )"
@@ -88,7 +88,7 @@ if mkdir $LOCKDIR; then
           if ! in_array TAGS "$TAG_CANDIDATE"; then
             if [[ "$TAG_CANDIDATE" = "USERTAG" ]]; then
               USERTAG=true
-            elif [[ -n "$TAG_CANDIDATE" && ! "$TAG_CANDIDATE" =~ ^[0-9-]+$ && "$TAG_CANDIDATE" != "tar" && "$TAG_CANDIDATE" != "AUTOZEEK" && ! "$TAG_CANDIDATE" =~ ^AUTOCARVE ]]; then
+            elif [[ -n "$TAG_CANDIDATE" && ! "$TAG_CANDIDATE" =~ ^[0-9-]+$ && "$TAG_CANDIDATE" != "tar" && "$TAG_CANDIDATE" != "AUTOZEEK" ]]; then
               TAGS+=("${TAG_CANDIDATE}")
               if [[ "$TAG_CANDIDATE" =~ ^NBSITEID ]]; then
                 TAGS_PRESERVED+=("${TAG_CANDIDATE}")

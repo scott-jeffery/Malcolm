@@ -1,6 +1,6 @@
 FROM debian:12-slim
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 LABEL maintainer="malcolm@inl.gov"
 LABEL org.opencontainers.image.authors='malcolm@inl.gov'
 LABEL org.opencontainers.image.url='https://github.com/idaholab/Malcolm'
@@ -37,7 +37,7 @@ ENV SUPERCRONIC_VERSION "0.2.33"
 ENV SUPERCRONIC_URL "https://github.com/aptible/supercronic/releases/download/v$SUPERCRONIC_VERSION/supercronic-linux-"
 ENV SUPERCRONIC_CRONTAB "/etc/crontab"
 
-ENV YQ_VERSION "4.44.3"
+ENV YQ_VERSION "4.45.1"
 ENV YQ_URL "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_"
 
 ENV SURICATA_VERSION_PATTERN "1:7.0.*"
@@ -108,7 +108,7 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
     apt-get install -q -y --no-install-recommends -t bookworm-backports \
         suricata=${SURICATA_VERSION_PATTERN} \
         suricata-update && \
-    python3 -m pip install --break-system-packages --no-compile --no-cache-dir watchdog==5.0.3 && \
+    python3 -m pip install --break-system-packages --no-compile --no-cache-dir watchdog==6.0.0 && \
     curl -fsSL -o /usr/local/bin/supercronic "${SUPERCRONIC_URL}${BINARCH}" && \
       chmod +x /usr/local/bin/supercronic && \
     curl -fsSL -o /usr/bin/yq "${YQ_URL}${BINARCH}" && \
@@ -130,17 +130,18 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
     apt-get clean && \
         rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY --chmod=644 shared/bin/pcap_utils.py /usr/local/bin/
-COPY --chmod=644 suricata/supervisord.conf /etc/supervisord.conf
-COPY --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
-COPY --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
 COPY --from=ghcr.io/mmguero-dev/gostatic --chmod=755 /goStatic /usr/bin/goStatic
-COPY --chmod=755 shared/bin/pcap_processor.py /usr/local/bin/
-COPY --chmod=644 scripts/malcolm_utils.py /usr/local/bin/
-COPY --chmod=755 shared/bin/suricata_config_populate.py /usr/local/bin/
-COPY --chmod=755 suricata/scripts/docker_entrypoint.sh /usr/local/bin/
-COPY --chmod=755 suricata/scripts/suricata-update-rules.sh /usr/local/bin/
-COPY --chmod=755 suricata/rules-default/ "$SURICATA_DEFAULT_RULES_DIR"/
+ADD --chmod=644 scripts/malcolm_utils.py /usr/local/bin/
+ADD --chmod=644 shared/bin/pcap_utils.py /usr/local/bin/
+ADD --chmod=644 shared/bin/suricata_socket.py /usr/local/bin/
+ADD --chmod=644 suricata/supervisord.conf /etc/supervisord.conf
+ADD --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
+ADD --chmod=755 shared/bin/pcap_processor.py /usr/local/bin/
+ADD --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
+ADD --chmod=755 container-health-scripts/suricata.sh /usr/local/bin/container_health.sh
+ADD --chmod=755 shared/bin/suricata_config_populate.py /usr/local/bin/
+ADD --chmod=755 suricata/rules-default/ "$SURICATA_DEFAULT_RULES_DIR"/
+ADD suricata/scripts /usr/local/bin/
 
 ARG PCAP_PIPELINE_VERBOSITY=""
 ARG PCAP_MONITOR_HOST=pcap-monitor

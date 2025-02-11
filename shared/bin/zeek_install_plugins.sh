@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 
 if [ -z "$BASH_VERSION" ]; then
   echo "Wrong interpreter, please run \"$0\" with bash"
@@ -63,10 +63,15 @@ function zkg_install_github_repo() {
         export "$ENV"
       done
     fi
+    EXTRA_ZKG_PARAMS=()
+    if [[ "$REPO_URL" =~ "zeek-kafka" ]]; then
+      EXTRA_ZKG_PARAMS+=( --user-var )
+      EXTRA_ZKG_PARAMS+=( LIBRDKAFKA_ROOT=/usr/include/librdkafka )
+    fi
     if [[ -n $REPO_LATEST_RELEASE ]]; then
-      zkg install --nodeps --force --skiptests --version "$REPO_LATEST_RELEASE" "$REPO_URL"
+      zkg install --nodeps --force --skiptests "${EXTRA_ZKG_PARAMS[@]}" --version "$REPO_LATEST_RELEASE" "$REPO_URL"
     else
-      zkg install --nodeps --force --skiptests "$REPO_URL"
+      zkg install --nodeps --force --skiptests "${EXTRA_ZKG_PARAMS[@]}" "$REPO_URL"
     fi
   fi
 }
@@ -94,41 +99,56 @@ ZKG_GITHUB_URLS=(
   "https://github.com/cisagov/icsnpp-genisys"
   "https://github.com/cisagov/icsnpp-hart-ip"
   "https://github.com/cisagov/icsnpp-modbus"
+  "https://github.com/cisagov/icsnpp-omron-fins"
   "https://github.com/cisagov/icsnpp-opcua-binary"
   "https://github.com/cisagov/icsnpp-profinet-io-cm"
   "https://github.com/cisagov/icsnpp-s7comm"
   "https://github.com/cisagov/icsnpp-synchrophasor"
   "https://github.com/corelight/callstranger-detector"
   "https://github.com/corelight/CVE-2020-16898"
+  "https://github.com/corelight/CVE-2021-1675"
   "https://github.com/corelight/CVE-2021-31166"
   "https://github.com/corelight/CVE-2021-38647"
   "https://github.com/corelight/CVE-2021-41773"
   "https://github.com/corelight/CVE-2021-42292"
   "https://github.com/corelight/cve-2021-44228"
+  "https://github.com/corelight/cve-2022-21907"
   "https://github.com/corelight/cve-2022-22954"
+  "https://github.com/corelight/CVE-2022-23270-PPTP"
+  "https://github.com/corelight/CVE-2022-24491"
+  "https://github.com/corelight/CVE-2022-24497"
   "https://github.com/corelight/cve-2022-26809"
+  "https://github.com/corelight/CVE-2022-26937"
+  "https://github.com/corelight/CVE-2022-30216"
   "https://github.com/corelight/CVE-2022-3602"
   "https://github.com/corelight/hassh"
   "https://github.com/corelight/http-more-files-names"
   "https://github.com/corelight/pingback"
   "https://github.com/corelight/ripple20"
   "https://github.com/corelight/SIGRed"
+  "https://github.com/corelight/zeek-agenttesla-detector"
+  "https://github.com/corelight/zeek-asyncrat-detector"
+  "https://github.com/corelight/zeek-long-connections|master"
+  "https://github.com/corelight/zeek-netsupport-detector"
+  "https://github.com/corelight/zeek-quasarrat-detector"
   "https://github.com/corelight/zeek-spicy-ipsec"
   "https://github.com/corelight/zeek-spicy-openvpn"
-  "https://github.com/corelight/zeek-spicy-ospf"
+  "https://github.com/corelight/zeek-spicy-ospf|master"
   "https://github.com/corelight/zeek-spicy-stun"
   "https://github.com/corelight/zeek-spicy-wireguard"
+  "https://github.com/corelight/zeek-strrat-detector"
   "https://github.com/corelight/zeek-xor-exe-plugin|master"
   "https://github.com/corelight/zerologon"
   "https://github.com/cybera/zeek-sniffpass"
-  "https://github.com/piercema/ja4"
+  "https://github.com/FoxIO-LLC/ja4|main"
   "https://github.com/mmguero-dev/bzar"
+  "https://github.com/mmguero-dev/GQUIC_Protocol_Analyzer"
   "https://github.com/ncsa/bro-is-darknet"
   "https://github.com/ncsa/bro-simple-scan"
   "https://github.com/precurse/zeek-httpattacks"
-  "https://github.com/mmguero-dev/GQUIC_Protocol_Analyzer"
-  "https://github.com/zeek/spicy-tftp"
-  "https://github.com/zeek/spicy-zip"
+  "https://github.com/SeisoLLC/zeek-kafka"
+  "https://github.com/zeek/spicy-tftp|main"
+  "https://github.com/zeek/spicy-zip|main"
 )
 
 for i in ${ZKG_GITHUB_URLS[@]}; do

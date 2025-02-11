@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 
 import base64
 import glob
@@ -218,19 +218,19 @@ MALCOLM_PROFILES_CONTAINERS[PROFILE_MALCOLM] = [
     'arkime-live',
     'dashboards',
     'dashboards-helper',
-    'filebeat',
     'file-monitor',
+    'filebeat',
     'freq',
     'htadmin',
     'logstash',
     'netbox',
     'netbox-postgres',
-    'netbox-redis-cache',
-    'netbox-redis',
     'nginx-proxy',
     'opensearch',
     'pcap-capture',
     'pcap-monitor',
+    'redis',
+    'redis-cache',
     'suricata-live',
     'suricata-offline',
     'upload',
@@ -244,6 +244,8 @@ MALCOLM_PROFILES_CONTAINERS[PROFILE_HEDGEHOG] = [
     'filebeat',
     'pcap-capture',
     'pcap-monitor',
+    'redis',
+    'redis-cache',
     'suricata-live',
     'suricata-offline',
     'zeek-live',

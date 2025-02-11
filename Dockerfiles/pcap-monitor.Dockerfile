@@ -1,6 +1,6 @@
 FROM debian:12-slim
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 LABEL maintainer="malcolm@inl.gov"
 LABEL org.opencontainers.image.authors='malcolm@inl.gov'
 LABEL org.opencontainers.image.url='https://github.com/idaholab/Malcolm'
@@ -68,19 +68,20 @@ RUN apt-get -q update && \
       python-magic \
       pyzmq \
       requests \
-      watchdog==5.0.3 && \
+      watchdog==6.0.0 && \
     groupadd --gid ${DEFAULT_GID} ${PGROUP} && \
       useradd -M --uid ${DEFAULT_UID} --gid ${DEFAULT_GID} ${PUSER}
 
-COPY --chmod=644 pcap-monitor/supervisord.conf /etc/supervisord.conf
-COPY --chmod=644 scripts/malcolm_utils.py /usr/local/bin/
-COPY --chmod=644 shared/bin/pcap_utils.py /usr/local/bin/
-COPY --chmod=644 shared/bin/watch_common.py /usr/local/bin/
-COPY --chmod=755 pcap-monitor/scripts/watch-pcap-uploads-folder.py /usr/local/bin/
-COPY --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
-COPY --chmod=755 shared/bin/pcap_watcher.py /usr/local/bin/
-COPY --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
+ADD --chmod=644 pcap-monitor/supervisord.conf /etc/supervisord.conf
+ADD --chmod=644 scripts/malcolm_utils.py /usr/local/bin/
+ADD --chmod=644 shared/bin/pcap_utils.py /usr/local/bin/
+ADD --chmod=644 shared/bin/watch_common.py /usr/local/bin/
+ADD --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
+ADD --chmod=755 shared/bin/pcap_watcher.py /usr/local/bin/
+ADD --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
+ADD --chmod=755 container-health-scripts/pcap-monitor.sh /usr/local/bin/container_health.sh
 COPY --from=ghcr.io/mmguero-dev/gostatic --chmod=755 /goStatic /usr/bin/goStatic
+ADD pcap-monitor/scripts /usr/local/bin
 
 EXPOSE 30441
 

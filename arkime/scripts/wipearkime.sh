@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 
 [[ ${OPENSEARCH_SSL_CERTIFICATE_VERIFICATION:-"false"} != "true" ]] && DB_SSL_FLAG="--insecure" || DB_SSL_FLAG=""
 OPENSEARCH_URL_FULL="$(grep -Pi '^elasticsearch\s*=' $ARKIME_DIR/etc/config.ini | cut -d'=' -f2-)"
 
-/opt/opensearch_status.sh
+/usr/local/bin/opensearch_status.sh
 
 #Wipe is the same initalize except it keeps users intact
 echo WIPE | /opt/arkime/db/db.pl $DB_SSL_FLAG  "${OPENSEARCH_URL_FULL}" wipe

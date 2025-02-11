@@ -1,6 +1,6 @@
-FROM netboxcommunity/netbox:v4.0.11
+FROM netboxcommunity/netbox:v4.1.11
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 LABEL maintainer="malcolm@inl.gov"
 LABEL org.opencontainers.image.authors='malcolm@inl.gov'
 LABEL org.opencontainers.image.url='https://github.com/idaholab/Malcolm'
@@ -29,13 +29,14 @@ ENV SUPERCRONIC_VERSION "0.2.33"
 ENV SUPERCRONIC_URL "https://github.com/aptible/supercronic/releases/download/v$SUPERCRONIC_VERSION/supercronic-linux-"
 ENV SUPERCRONIC_CRONTAB "/etc/crontab"
 
-ENV NETBOX_INITIALIZERS_VERSION "50d077d"
-ENV NETBOX_TOPOLOGY_VERSION "4.0.1"
+ENV NETBOX_INITIALIZERS_VERSION "v4.1.0"
+ENV NETBOX_TOPOLOGY_VERSION "4.1.0"
+ENV NETBOX_HEALTHCHECK_VERSION "0.2.0"
 
-ENV YQ_VERSION "4.44.3"
+ENV YQ_VERSION "4.45.1"
 ENV YQ_URL "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_"
 
-ENV NETBOX_DEVICETYPE_LIBRARY_IMPORT_URL "https://codeload.github.com/netbox-community/Device-Type-Library-Import/tar.gz/develop"
+ENV NETBOX_DEVICETYPE_LIBRARY_IMPORT_URL "https://codeload.github.com/mmguero-dev/Device-Type-Library-Import/tar.gz/develop"
 ENV NETBOX_DEVICETYPE_LIBRARY_URL "https://codeload.github.com/netbox-community/devicetype-library/tar.gz/master"
 
 ARG NETBOX_DEVICETYPE_LIBRARY_IMPORT_PATH="/opt/netbox-devicetype-library-import"
@@ -86,6 +87,7 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
     "${NETBOX_PATH}/venv/bin/python" -m pip install --break-system-packages --no-compile --no-cache-dir \
       "git+https://github.com/tobiasge/netbox-initializers@${NETBOX_INITIALIZERS_VERSION}" \
       "git+https://github.com/netbox-community/netbox-topology-views@v${NETBOX_TOPOLOGY_VERSION}" \
+      "git+https://github.com/netbox-community/netbox-healthcheck-plugin@v${NETBOX_HEALTHCHECK_VERSION}" \
       psycopg2 \
       pynetbox \
       python-magic \
@@ -117,7 +119,6 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
       cryptography \
       GitPython \
       Jinja2 \
-      "Django>=4.2.10,<5" \
       paramiko \
       pillow && \
     mkdir -p "${NETBOX_PATH}/netbox/netbox" "${NETBOX_CUSTOM_PLUGINS_PATH}/requirements" && \
@@ -130,13 +131,14 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
     sed -i -E 's@^([[:space:]]*\-\-(state|tmp))([[:space:]])@\1dir\3@g' "${NETBOX_PATH}/launch-netbox.sh" && \
     sed -i '/\/opt\/netbox\/venv\/bin\/activate/a \\n# Install custom plugins \npython3 /usr/local/bin/netbox_install_plugins.py' /opt/netbox/docker-entrypoint.sh
 
-COPY --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
-COPY --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
 COPY --from=ghcr.io/mmguero-dev/gostatic --chmod=755 /goStatic /usr/bin/goStatic
-COPY --chmod=755 netbox/scripts/* /usr/local/bin/
-COPY --chmod=644 scripts/malcolm_utils.py /usr/local/bin/
-COPY --chmod=644 netbox/supervisord.conf /etc/supervisord.conf
-COPY --chmod=644 netbox/preload/*.yml $NETBOX_PRELOAD_PATH/
+ADD --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
+ADD --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
+ADD --chmod=755 container-health-scripts/netbox.sh /usr/local/bin/container_health.sh
+ADD --chmod=755 netbox/scripts/* /usr/local/bin/
+ADD --chmod=644 scripts/malcolm_utils.py /usr/local/bin/
+ADD --chmod=644 netbox/supervisord.conf /etc/supervisord.conf
+ADD --chmod=644 netbox/preload/*.yml $NETBOX_PRELOAD_PATH/
 
 EXPOSE 9001
 

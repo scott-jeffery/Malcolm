@@ -4,7 +4,6 @@ import malcolm_utils
 import os
 import platform
 import psutil
-import pytz
 import random
 import re
 import requests
@@ -15,7 +14,7 @@ import warnings
 
 from collections import defaultdict, OrderedDict
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timezone
 from flask import Flask, jsonify, request
 from requests.auth import HTTPBasicAuth
 from urllib.parse import urlparse
@@ -169,15 +168,6 @@ missing_field_map['integer'] = 0
 missing_field_map['ip'] = '0.0.0.0'
 missing_field_map['long'] = 0
 
-logstash_default_pipelines = [
-    "malcolm-beats",
-    "malcolm-enrichment",
-    "malcolm-input",
-    "malcolm-output",
-    "malcolm-suricata",
-    "malcolm-zeek",
-]
-
 urllib3.disable_warnings()
 warnings.filterwarnings(
     "ignore",
@@ -239,14 +229,14 @@ else:
 
 if databaseMode == malcolm_utils.DatabaseMode.ElasticsearchRemote:
     import elasticsearch as DatabaseImport
-    from elasticsearch_dsl import Search as SearchClass
+    from elasticsearch_dsl import Search as SearchClass, A as AggregationClass, Q as QueryClass
 
     DatabaseClass = DatabaseImport.Elasticsearch
     if opensearchHttpAuth:
         DatabaseInitArgs['basic_auth'] = opensearchHttpAuth
 else:
     import opensearchpy as DatabaseImport
-    from opensearchpy import Search as SearchClass
+    from opensearchpy import Search as SearchClass, A as AggregationClass, Q as QueryClass
 
     DatabaseClass = DatabaseImport.OpenSearch
     if opensearchHttpAuth:
@@ -256,6 +246,10 @@ databaseClient = DatabaseClass(
     hosts=[opensearchUrl],
     **DatabaseInitArgs,
 )
+
+
+def doctype_is_host_logs(d):
+    return any([str(d).lower().startswith(x) for x in ['host', 'beat', 'miscbeat']])
 
 
 def random_id(length=20):
@@ -362,12 +356,12 @@ def urls_for_field(fieldname, start_time=None, end_time=None):
         a list of URLs relevant to the field
     """
     start_time_str = (
-        f"'{start_time.astimezone(pytz.utc).isoformat().replace('+00:00', 'Z')}'"
+        f"'{start_time.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')}'"
         if start_time is not None
         else 'now-1d'
     )
     end_time_str = (
-        f"'{end_time.astimezone(pytz.utc).isoformat().replace('+00:00', 'Z')}'" if end_time is not None else 'now'
+        f"'{end_time.astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')}'" if end_time is not None else 'now'
     )
     translated = []
 
@@ -400,7 +394,7 @@ def doctype_from_args(args):
     return doctype
         network|host
     """
-    return malcolm_utils.deep_get(args, ["doctype"], app.config["DOCTYPE_DEFAULT"])
+    return str(malcolm_utils.deep_get(args, ["doctype"], app.config["DOCTYPE_DEFAULT"])).lower()
 
 
 def index_from_args(args):
@@ -421,8 +415,8 @@ def index_from_args(args):
         app.config["MALCOLM_NETWORK_INDEX_PATTERN"],
     """
     index = None
-    if dtype := str(doctype_from_args(args)).lower():
-        if dtype.startswith('host') or dtype.startswith('beat') or dtype.startswith('miscbeat'):
+    if dtype := doctype_from_args(args):
+        if doctype_is_host_logs(dtype):
             index = app.config["MALCOLM_OTHER_INDEX_PATTERN"]
         elif dtype.startswith('arkime') or dtype.startswith('session'):
             index = app.config["ARKIME_NETWORK_INDEX_PATTERN"]
@@ -449,8 +443,8 @@ def timefield_from_args(args):
         app.config["MALCOLM_NETWORK_INDEX_TIME_FIELD"],
     """
     timefield = None
-    if dtype := str(doctype_from_args(args)).lower():
-        if dtype.startswith('host') or dtype.startswith('beat') or dtype.startswith('miscbeat'):
+    if dtype := doctype_from_args(args):
+        if doctype_is_host_logs(dtype):
             timefield = app.config["MALCOLM_OTHER_INDEX_TIME_FIELD"]
         elif dtype.startswith('arkime') or dtype.startswith('session'):
             timefield = app.config["ARKIME_NETWORK_INDEX_TIME_FIELD"]
@@ -727,15 +721,21 @@ def indices():
     Returns
     -------
     indices
-        The output of _cat/indices?format=json from the OpenSearch API
+        A dict where "indices" contains the array from output of _cat/indices?format=json from the OpenSearch API,
+        and malcolm_network_index_pattern, malcolm_other_index_pattern, and arkime_network_index_pattern contain
+        their respective index pattern names
     """
-    return jsonify(
-        indices=requests.get(
-            f'{opensearchUrl}/_cat/indices?format=json',
-            auth=opensearchReqHttpAuth,
-            verify=opensearchSslVerify,
-        ).json()
-    )
+    result = {}
+    result["indices"] = requests.get(
+        f'{opensearchUrl}/_cat/indices?format=json',
+        auth=opensearchReqHttpAuth,
+        verify=opensearchSslVerify,
+    ).json()
+    result["malcolm_network_index_pattern"] = app.config["MALCOLM_NETWORK_INDEX_PATTERN"]
+    result["malcolm_other_index_pattern"] = app.config["MALCOLM_OTHER_INDEX_PATTERN"]
+    result["arkime_network_index_pattern"] = app.config["ARKIME_NETWORK_INDEX_PATTERN"]
+
+    return jsonify(result)
 
 
 @app.route(
@@ -908,7 +908,7 @@ def version():
         sha=app.config["VCS_REVISION"],
         mode=malcolm_utils.DatabaseModeEnumToStr(databaseMode),
         machine=platform.machine(),
-        boot_time=datetime.fromtimestamp(psutil.boot_time(), tz=pytz.utc).isoformat().replace('+00:00', 'Z'),
+        boot_time=datetime.fromtimestamp(psutil.boot_time(), tz=timezone.utc).isoformat().replace('+00:00', 'Z'),
         opensearch=opensearchStats,
     )
 
@@ -937,7 +937,7 @@ def ready():
     logstash_lumberjack
         true or false, the ready status of Logstash's lumberjack protocol listener
     logstash_pipelines
-        true or false, the ready status of Logstash's default pipelines
+        true or false, the ready status of Logstash's pipelines
     netbox
         true or false, the ready status of NetBox
     opensearch
@@ -998,9 +998,9 @@ def ready():
             print(f"{type(e).__name__}: {str(e)} getting freq status")
 
     try:
-        logstashStats = requests.get(f'{logstashUrl}/_node').json()
+        logstashHealth = requests.get(f'{logstashUrl}/_health_report').json()
     except Exception as e:
-        logstashStats = {}
+        logstashHealth = {}
         if debugApi:
             print(f"{type(e).__name__}: {str(e)} getting Logstash node status")
 
@@ -1012,7 +1012,7 @@ def ready():
             print(f"{type(e).__name__}: {str(e)} getting Logstash lumberjack listener status")
 
     try:
-        netboxStatus = requests.get(f'{netboxUrl}/api/status').json()
+        netboxStatus = requests.get(f'{netboxUrl}/plugins/netbox_healthcheck_plugin/healthcheck/?format=json').json()
     except Exception as e:
         netboxStatus = {}
         if debugApi:
@@ -1052,22 +1052,198 @@ def ready():
 
     return jsonify(
         arkime=arkimeStatus,
-        dashboards=(malcolm_utils.deep_get(dashboardsStatus, ["status", "overall", "state"]) == "green"),
+        dashboards=(malcolm_utils.deep_get(dashboardsStatus, ["status", "overall", "state"], "red") != "red"),
         dashboards_maps=dashboardsMapsStatus,
         filebeat_tcp=filebeatTcpJsonStatus,
         freq=freqStatus,
         logstash_lumberjack=logstashLJStatus,
-        logstash_pipelines=(malcolm_utils.deep_get(logstashStats, ["status"]) == "green")
-        and all(
-            pipeline in malcolm_utils.deep_get(logstashStats, ["pipelines"], {})
-            for pipeline in logstash_default_pipelines
+        logstash_pipelines=(malcolm_utils.deep_get(logstashHealth, ["status"], "red") != "red")
+        and (malcolm_utils.deep_get(logstashHealth, ["indicators", "pipelines", "status"], "red") != "red"),
+        netbox=bool(
+            isinstance(netboxStatus, dict)
+            and netboxStatus
+            and all(value == "working" for value in netboxStatus.values())
         ),
-        netbox=bool(malcolm_utils.deep_get(netboxStatus, ["netbox-version"])),
         opensearch=(malcolm_utils.deep_get(openSearchHealth, ["status"], 'red') != "red"),
         pcap_monitor=pcapMonitorStatus,
         zeek_extracted_file_logger=zeekExtractedFileLoggerStatus,
         zeek_extracted_file_monitor=zeekExtractedFileMonitorStatus,
     )
+
+
+@app.route(
+    f"{('/' + app.config['MALCOLM_API_PREFIX']) if app.config['MALCOLM_API_PREFIX'] else ''}/dashboard-export/<dashid>",
+    methods=['GET', 'POST'],
+)
+def dashboard_export(dashid):
+    """Uses the opensearch dashboards API to export a dashboard. Also handles the _REPLACER strings
+    as described in "Adding new visualizations and dashboards" at
+    https://idaholab.github.io/Malcolm/docs/contributing-dashboards.html#DashboardsNewViz
+
+    Parameters
+    ----------
+    dashid : string
+        the ID of the dashboard to export
+    request : Request
+        Uses 'replace' from requests arguments, true (default) or false; indicates whether or not to do
+        MALCOLM_NETWORK_INDEX_PATTERN_REPLACER, MALCOLM_NETWORK_INDEX_TIME_FIELD_REPLACER,
+        MALCOLM_OTHER_INDEX_PATTERN_REPLACER
+
+    Returns
+    -------
+    content
+        The JSON of the exported dashboard
+    """
+
+    args = get_request_arguments(request)
+    try:
+        # call the API to get the dashboard JSON
+        response = requests.get(
+            f"{dashboardsUrl}/api/{'kibana' if (databaseMode == malcolm_utils.DatabaseMode.ElasticsearchRemote) else 'opensearch-dashboards'}/dashboards/export",
+            params={
+                'dashboard': dashid,
+            },
+            auth=opensearchReqHttpAuth,
+            verify=opensearchSslVerify,
+        )
+        response.raise_for_status()
+
+        if doReplacers := malcolm_utils.str2bool(args.get('replace', 'true')):
+            # replace references to index pattern names with the _REPLACER strings, which will allow other Malcolm
+            #   instances that use different index pattern names to import them and substitute their own names
+            replacements = {
+                app.config['MALCOLM_NETWORK_INDEX_PATTERN']: 'MALCOLM_NETWORK_INDEX_PATTERN_REPLACER',
+                app.config['MALCOLM_NETWORK_INDEX_TIME_FIELD']: 'MALCOLM_NETWORK_INDEX_TIME_FIELD_REPLACER',
+                app.config['MALCOLM_OTHER_INDEX_PATTERN']: 'MALCOLM_OTHER_INDEX_PATTERN_REPLACER',
+            }
+            pattern = re.compile('|'.join(re.escape(key) for key in replacements))
+            responseText = pattern.sub(lambda match: replacements[match.group(0)], response.text)
+        else:
+            # ... or just return it as-is
+            responseText = response.text
+
+        # remove index pattern definition from exported dashboard as they get created programatically
+        #   on Malcolm startup and we don't want them to come in with imported dashboards
+        if responseParsed := malcolm_utils.LoadStrIfJson(responseText):
+            if 'objects' in responseParsed and isinstance(responseParsed['objects'], list):
+                responseParsed['objects'] = [
+                    o
+                    for o in responseParsed['objects']
+                    if not (
+                        (o.get("type") == "index-pattern")
+                        and (
+                            o.get("id")
+                            in [
+                                (
+                                    "MALCOLM_NETWORK_INDEX_PATTERN_REPLACER"
+                                    if doReplacers
+                                    else app.config['MALCOLM_NETWORK_INDEX_PATTERN']
+                                ),
+                                (
+                                    "MALCOLM_OTHER_INDEX_PATTERN_REPLACER"
+                                    if doReplacers
+                                    else app.config['MALCOLM_OTHER_INDEX_PATTERN']
+                                ),
+                            ]
+                        )
+                    )
+                ]
+            return jsonify(responseParsed)
+
+        else:
+            # what we got back from the API wasn't valid JSON, so sad
+            return jsonify(error=f'Could not process export response for {dashid}')
+
+    except Exception as e:
+        errStr = f"{type(e).__name__}: {str(e)} exporting OpenSearch Dashboard {dashid}"
+        if debugApi:
+            print(errStr)
+        return jsonify(error=errStr)
+
+
+@app.route(
+    f"{('/' + app.config['MALCOLM_API_PREFIX']) if app.config['MALCOLM_API_PREFIX'] else ''}/ingest-stats",
+    methods=['GET'],
+)
+def ingest_stats():
+    """Provide an aggregation of each log source (host.name) with it's latest event.ingested
+    time. This can be used to know the most recent time a document was written from each
+    network sensor.
+
+    Parameters
+    ----------
+    request : Request
+        Uses 'doctype' from request arguments
+    Returns
+    -------
+    fields
+        A dict where "sources" contains a sub-dict where key is host.name and value is max(event.ingested)
+        for that host, and "latest_ingest_age_seconds" is the age (in seconds) of the most recently
+        ingested log
+    """
+    global databaseClient
+    global SearchClass
+    global AggregationClass
+
+    result = {}
+    result['latest_ingest_age_seconds'] = 0
+    try:
+        # do the aggregation bucket query for the max event.ingested value for each data source
+        request_args = get_request_arguments(request)
+        s = (
+            SearchClass(
+                using=databaseClient,
+                index=index_from_args(request_args),
+            ).extra(size=0)
+            # Exclusions:
+            #   NGINX access and error logs: we want to exclude nginx error and
+            #       access logs, otherwise the very act of accessing Malcolm will
+            #       update the latest ingest time returned from this function.
+            #   event() webhook: we want to exclude alerts written by the event()
+            #       webhook API (see below) and limit our results to actual
+            #       network logs ingested via PCAP, etc.
+            .query(
+                QueryClass(
+                    'bool',
+                    must_not=[
+                        QueryClass(
+                            'term',
+                            **{
+                                'event.module': (
+                                    'nginx' if doctype_is_host_logs(doctype_from_args(request_args)) else 'alerting'
+                                )
+                            },
+                        )
+                    ],
+                )
+            )
+        )
+
+        hostAgg = AggregationClass('terms', field='host.name')
+        maxIngestAgg = AggregationClass('max', field='event.ingested')
+        s.aggs.bucket('host_names', hostAgg).metric('max_event_ingested', maxIngestAgg)
+        response = s.execute()
+
+        # put the result array together while tracking the most recent ingest time
+        nowTime = datetime.now().astimezone(timezone.utc)
+        maxTime = None
+        result['sources'] = {}
+        for bucket in response.aggregations.host_names.buckets:
+            sourceTime = datetime.fromtimestamp(bucket.max_event_ingested.value / 1000, timezone.utc)
+            result['sources'][bucket.key] = sourceTime.replace(microsecond=0).isoformat()
+            if (maxTime is None) or (sourceTime > maxTime):
+                maxTime = sourceTime
+
+        # calculate the age of the most recent ingest time
+        if maxTime:
+            diffTime = nowTime - maxTime
+            result['latest_ingest_age_seconds'] = max(round(diffTime.total_seconds()), 0)
+
+    except Exception as e:
+        if debugApi:
+            print(f"{type(e).__name__}: \"{str(e)}\" getting ingest stats")
+
+    return jsonify(result)
 
 
 @app.route(
@@ -1153,7 +1329,7 @@ def event():
     alert = {}
     idxResponse = {}
     data = get_request_arguments(request)
-    nowTimeStr = datetime.now().astimezone(pytz.utc).isoformat().replace('+00:00', 'Z')
+    nowTimeStr = datetime.now().astimezone(timezone.utc).isoformat().replace('+00:00', 'Z')
     if 'alert' in data:
         alert[app.config["MALCOLM_NETWORK_INDEX_TIME_FIELD"]] = malcolm_utils.deep_get(
             data,

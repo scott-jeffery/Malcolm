@@ -1,6 +1,6 @@
-FROM opensearchproject/opensearch:2.17.1
+FROM opensearchproject/opensearch:2.18.0
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 LABEL maintainer="malcolm@inl.gov"
 LABEL org.opencontainers.image.authors='malcolm@inl.gov'
 LABEL org.opencontainers.image.url='https://github.com/idaholab/Malcolm'
@@ -65,17 +65,18 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
   sed -i '/^[[:space:]]*runOpensearch.*/i /usr/local/bin/jdk-cacerts-auto-import.sh || true' /usr/share/opensearch/opensearch-docker-entrypoint.sh && \
   sed -i '/^[[:space:]]*runOpensearch.*/i /usr/local/bin/keystore-bootstrap.sh || true' /usr/share/opensearch/opensearch-docker-entrypoint.sh
 
-COPY --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
-COPY --chmod=755 shared/bin/jdk-cacerts-auto-import.sh /usr/local/bin/
-COPY --chmod=755 shared/bin/keystore-bootstrap.sh /usr/local/bin/
-COPY --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
 COPY --from=ghcr.io/mmguero-dev/gostatic --chmod=755 /goStatic /usr/bin/goStatic
+ADD --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
+ADD --chmod=755 shared/bin/jdk-cacerts-auto-import.sh /usr/local/bin/
+ADD --chmod=755 shared/bin/keystore-bootstrap.sh /usr/local/bin/
+ADD --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
+ADD --chmod=755 container-health-scripts/opensearch.sh /usr/local/bin/container_health.sh
 
 ENV bootstrap.memory_lock "true"
 ENV cluster.routing.allocation.disk.threshold_enabled "false"
 ENV cluster.routing.allocation.node_initial_primaries_recoveries 8
 ENV discovery.type "single-node"
-ENV indices.query.bool.max_clause_count 4096
+ENV indices.query.bool.max_clause_count 8192
 ENV logger.level "WARN"
 ENV MAX_LOCKED_MEMORY "unlimited"
 ENV path.repo "/opt/opensearch/backup"

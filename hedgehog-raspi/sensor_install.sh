@@ -32,9 +32,9 @@ SHARED_DIR='/opt/buildshared'
 WORK_DIR="$(mktemp -d -t hedgehog-XXXXXX)"
 SENSOR_DIR='/opt/sensor'
 
-ARKIME_VERSION="5.4.0"
+ARKIME_VERSION="5.6.0"
 
-BEATS_VER="8.15.3"
+BEATS_VER="8.17.0"
 BEATS_OSS="-oss"
 
 # Option to build from sources if desired
@@ -212,7 +212,7 @@ build_zeek_src() {
     export PYTHONUNBUFFERED=1
 
     zeek_url=https://github.com/zeek/zeek.git
-    zeek_version=7.0.3
+    zeek_version=7.1.0
     zeek_release=1
     zeek_dir=/opt/zeek
     # Zeek's build eats a ton of resources; prevent OOM from the killing build process
@@ -376,7 +376,7 @@ install_files() {
     echo "HOME_URL=\"https://${IMAGE_PUBLISHER}.github.io/Malcolm\"" >> "$sensor_ver_file"
     echo "DOCUMENTATION_URL=\"https://${IMAGE_PUBLISHER}.github.io/Malcolm/docs/hedgehog.html\"" >> "$sensor_ver_file"
     echo "SUPPORT_URL=\"https://github.com/${IMAGE_PUBLISHER}\"" >> "$sensor_ver_file"
-    echo "BUG_REPORT_URL=\"https://github.com/${IMAGE_PUBLISHER}/malcolm/issues\"" >> "$sensor_ver_file"
+    echo "BUG_REPORT_URL=\"https://github.com/cisagov/malcolm/issues\"" >> "$sensor_ver_file"
 
     # grab maxmind geoip database files, iana ipv4 address ranges, wireshark oui lists, etc.
     mkdir -p /opt/arkime/etc

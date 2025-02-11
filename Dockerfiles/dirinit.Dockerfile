@@ -1,6 +1,6 @@
 FROM alpine:3.20
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 LABEL maintainer="malcolm@inl.gov"
 LABEL org.opencontainers.image.authors='malcolm@inl.gov'
 LABEL org.opencontainers.image.url='https://github.com/idaholab/Malcolm'
@@ -21,7 +21,7 @@ USER root
 
 ENV TERM xterm
 
-COPY --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
+ADD --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
 
 RUN apk update --no-cache && \
     apk upgrade --no-cache && \

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2024 Battelle Energy Alliance, LLC.  All rights reserved.
+# Copyright (c) 2025 Battelle Energy Alliance, LLC.  All rights reserved.
 
 MALCOLM_PROFILE=${MALCOLM_PROFILE:-"malcolm"}
 OPENSEARCH_URL=${OPENSEARCH_URL:-"http://opensearch:9200"}
@@ -39,7 +39,7 @@ if [[ "$MALCOLM_PROFILE" == "malcolm" ]]; then
   $ARKIME_DIR/bin/arkime_update_geo.sh
 
   echo "Giving $OPENSEARCH_PRIMARY time to start..."
-  /opt/opensearch_status.sh 2>&1 && echo "$OPENSEARCH_PRIMARY is running!"
+  /usr/local/bin/opensearch_status.sh 2>&1 && echo "$OPENSEARCH_PRIMARY is running!"
 
   # start and wait patiently for WISE
   if [[ "$WISE" = "on" ]] ; then

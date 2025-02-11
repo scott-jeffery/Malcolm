@@ -1,4 +1,4 @@
-FROM opensearchproject/opensearch-dashboards:2.17.1
+FROM opensearchproject/opensearch-dashboards:2.18.0
 
 LABEL maintainer="malcolm@inl.gov"
 LABEL org.opencontainers.image.authors='malcolm@inl.gov'
@@ -23,7 +23,7 @@ ENV TERM xterm
 ENV TINI_VERSION v0.19.0
 ENV TINI_URL https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini
 
-ENV OSD_TRANSFORM_VIS_VERSION 2.17.1
+ENV OSD_TRANSFORM_VIS_VERSION 2.18.0
 
 ARG NODE_OPTIONS="--max_old_space_size=4096"
 ENV NODE_OPTIONS $NODE_OPTIONS
@@ -43,8 +43,8 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
     /usr/share/opensearch-dashboards/bin/opensearch-dashboards-plugin remove securityDashboards --allow-root && \
     cd /tmp && \
         # unzip transformVis.zip opensearch-dashboards/transformVis/opensearch_dashboards.json opensearch-dashboards/transformVis/package.json && \
-        # sed -i "s/2\.16\.0/2\.17\.0/g" opensearch-dashboards/transformVis/opensearch_dashboards.json && \
-        # sed -i "s/2\.16\.0/2\.17\.0/g" opensearch-dashboards/transformVis/package.json && \
+        # sed -i "s/2\.17\.1/2\.18\.0/g" opensearch-dashboards/transformVis/opensearch_dashboards.json && \
+        # sed -i "s/2\.17\.1/2\.18\.0/g" opensearch-dashboards/transformVis/package.json && \
         # zip transformVis.zip opensearch-dashboards/transformVis/opensearch_dashboards.json opensearch-dashboards/transformVis/package.json && \
         cd /usr/share/opensearch-dashboards/plugins && \
         /usr/share/opensearch-dashboards/bin/opensearch-dashboards-plugin install file:///tmp/transformVis.zip --allow-root && \
@@ -55,13 +55,14 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
     yum clean all && \
     rm -rf /var/cache/yum
 
-COPY --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
-COPY --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
 COPY --from=ghcr.io/mmguero-dev/gostatic --chmod=755 /goStatic /usr/bin/goStatic
-COPY --chmod=755 dashboards/scripts/docker_entrypoint.sh /usr/local/bin/
-ADD dashboards/opensearch_dashboards.yml /usr/share/opensearch-dashboards/config/opensearch_dashboards.orig.yml
-ADD dashboards/scripts/docker_entrypoint.sh /usr/local/bin/
-ADD scripts/malcolm_utils.py /usr/local/bin/
+ADD --chmod=755 shared/bin/docker-uid-gid-setup.sh /usr/local/bin/
+ADD --chmod=755 shared/bin/service_check_passthrough.sh /usr/local/bin/
+ADD --chmod=755 container-health-scripts/dashboards.sh /usr/local/bin/container_health.sh
+ADD --chmod=755 dashboards/scripts/docker_entrypoint.sh /usr/local/bin/
+ADD --chmod=644 dashboards/opensearch_dashboards.yml /usr/share/opensearch-dashboards/config/opensearch_dashboards.orig.yml
+ADD --chmod=755 dashboards/scripts/docker_entrypoint.sh /usr/local/bin/
+ADD --chmod=644 scripts/malcolm_utils.py /usr/local/bin/
 
 ENTRYPOINT ["/usr/bin/tini", \
             "--", \
