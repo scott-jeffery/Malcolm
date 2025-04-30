@@ -32,7 +32,7 @@ SHARED_DIR='/opt/buildshared'
 WORK_DIR="$(mktemp -d -t hedgehog-XXXXXX)"
 SENSOR_DIR='/opt/sensor'
 
-ARKIME_VERSION="5.6.1"
+ARKIME_VERSION="5.6.3"
 
 BEATS_VER="8.17.0"
 BEATS_OSS="-oss"
@@ -60,7 +60,6 @@ BUILD_ERROR_CODE=1
 
 build_arkime(){
     mkdir -p /tmp/arkime-deb
-    # TODO: switch back to release when it's actually out, or revert to source build
     ARKIME_DEB_URL="https://github.com/arkime/arkime/releases/download/v${ARKIME_VERSION}/arkime_${ARKIME_VERSION}-1.debian12_${ARCH}.deb"
     curl -fsSL -o /tmp/arkime-deb/arkime.deb "${ARKIME_DEB_URL}"
     dpkg -i /tmp/arkime-deb/*.deb || apt-get -f install -y --no-install-suggests
@@ -212,7 +211,7 @@ build_zeek_src() {
     export PYTHONUNBUFFERED=1
 
     zeek_url=https://github.com/zeek/zeek.git
-    zeek_version=7.1.0
+    zeek_version=7.1.1
     zeek_release=1
     zeek_dir=/opt/zeek
     # Zeek's build eats a ton of resources; prevent OOM from the killing build process
@@ -432,6 +431,25 @@ install_hooks() {
         rm -f "${hooks_dir}"/*login.hook.chroot
         rm -f "${hooks_dir}"/*stig-scripts.hook.chroot
     fi
+
+    # create hooks for installing Python packages
+    HOOK_COUNTER=168
+    for REQTYPE in interface sensor; do
+      if [ -f "$SENSOR_DIR/requirements-$REQTYPE.txt" ]; then
+        echo "#!/bin/sh" >> ${hooks_dir}/0${HOOK_COUNTER}-pip-sensor-$SUBDIR-installs.hook.chroot
+        echo "export LC_ALL=C.UTF-8" >> ${hooks_dir}/0${HOOK_COUNTER}-pip-sensor-$SUBDIR-installs.hook.chroot
+        echo "export LANG=C.UTF-8" >> ${hooks_dir}/0${HOOK_COUNTER}-pip-sensor-$SUBDIR-installs.hook.chroot
+        echo "PYTHONDONTWRITEBYTECODE=1" >> ${hooks_dir}/0${HOOK_COUNTER}-pip-sensor-$SUBDIR-installs.hook.chroot
+        echo "PYTHONUNBUFFERED=1" >> ${hooks_dir}/0${HOOK_COUNTER}-pip-sensor-$SUBDIR-installs.hook.chroot
+        echo -n "python3 -m pip install --break-system-packages --no-compile --no-cache-dir --force-reinstall --upgrade" >> ${hooks_dir}/0${HOOK_COUNTER}-pip-sensor-$SUBDIR-installs.hook.chroot
+        while read LINE; do
+          echo -n -e " \\\\\n  $LINE" >> ${hooks_dir}/0${HOOK_COUNTER}-pip-sensor-$SUBDIR-installs.hook.chroot
+        done <"$SENSOR_DIR/requirements-$REQTYPE.txt"
+        echo "" >> ${hooks_dir}/0${HOOK_COUNTER}-pip-sensor-$SUBDIR-installs.hook.chroot
+        chmod +x ${hooks_dir}/0${HOOK_COUNTER}-pip-sensor-$SUBDIR-installs.hook.chroot
+      fi
+      ((HOOK_COUNTER++))
+    done
 
     for file in ${hooks_dir}/*.hook.chroot; do
         /bin/bash "$file"

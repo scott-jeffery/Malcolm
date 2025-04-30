@@ -70,12 +70,12 @@ if '*' not in ALLOWED_HOSTS and 'localhost' not in ALLOWED_HOSTS:
 # PostgreSQL database configuration. See the Django documentation for a complete list of available parameters:
 #   https://docs.djangoproject.com/en/stable/ref/settings/#databases
 DATABASE = {
-    'NAME': environ.get('DB_NAME', 'netbox'),  # Database name
-    'USER': environ.get('DB_USER', ''),  # PostgreSQL username
-    'PASSWORD': _read_secret('db_password', environ.get('DB_PASSWORD', '')),
+    'NAME': environ.get('POSTGRES_NETBOX_DB', 'netbox'),  # Database name
+    'USER': environ.get('POSTGRES_NETBOX_USER', ''),  # PostgreSQL username
+    'PASSWORD': _read_secret('db_password', environ.get('POSTGRES_NETBOX_PASSWORD', '')),
     # PostgreSQL password
-    'HOST': environ.get('DB_HOST', 'localhost'),  # Database server
-    'PORT': environ.get('DB_PORT', ''),  # Database port (leave blank for default)
+    'HOST': environ.get('POSTGRES_HOST', 'localhost'),  # Database server
+    'PORT': environ.get('PGPORT', ''),  # Database port (leave blank for default)
     'OPTIONS': {'sslmode': environ.get('DB_SSLMODE', 'prefer')},
     # Database connection SSLMODE
     'CONN_MAX_AGE': _environ_get_and_map('DB_CONN_MAX_AGE', '300', _AS_INT),
@@ -365,3 +365,6 @@ SESSION_FILE_PATH = environ.get('SESSION_FILE_PATH', environ.get('SESSIONS_ROOT'
 
 # Time zone (default: UTC)
 TIME_ZONE = environ.get('TIME_ZONE', 'UTC')
+
+# If true disables miscellaneous functionality which depends on access to the Internet.
+ISOLATED_DEPLOYMENT = _environ_get_and_map('ISOLATED_DEPLOYMENT', 'False', _AS_BOOL)

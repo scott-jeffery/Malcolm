@@ -141,7 +141,7 @@ def main():
         '--url',
         dest='netboxUrl',
         type=str,
-        default='http://localhost:8080/netbox',
+        default=os.getenv('NETBOX_URL') or 'http://netbox:8080/netbox',
         required=False,
         help="NetBox Base URL",
     )
@@ -249,15 +249,23 @@ def main():
         '--postgres-host',
         dest='postgresHost',
         type=str,
-        default=os.getenv('DB_HOST', 'netbox-postgres'),
+        default=os.getenv('POSTGRES_HOST', 'postgres'),
         required=False,
         help="postgreSQL host for preloading an entire database dump .gz (specified with --preload-backup or loaded from the --preload directory)",
+    )
+    parser.add_argument(
+        '--postgres-port',
+        dest='postgresPort',
+        type=int,
+        default=int(os.getenv('PGPORT', '5432')),
+        required=False,
+        help="postgreSQL port for use with --postgres-host",
     )
     parser.add_argument(
         '--postgres-db',
         dest='postgresDB',
         type=str,
-        default=os.getenv('DB_NAME', 'netbox'),
+        default=os.getenv('POSTGRES_NETBOX_DB', 'netbox'),
         required=False,
         help="postgreSQL database name",
     )
@@ -265,7 +273,7 @@ def main():
         '--postgres-user',
         dest='postgresUser',
         type=str,
-        default=os.getenv('DB_USER', 'netbox'),
+        default=os.getenv('POSTGRES_NETBOX_USER', 'netbox'),
         required=False,
         help="postgreSQL user name",
     )
@@ -273,7 +281,7 @@ def main():
         '--postgres-password',
         dest='postgresPassword',
         type=str,
-        default=os.getenv('DB_PASSWORD', ''),
+        default=os.getenv('POSTGRES_NETBOX_PASSWORD', ''),
         required=False,
         help="postgreSQL password",
     )
@@ -294,6 +302,7 @@ def main():
     if args.verbose > logging.DEBUG:
         sys.tracebacklimit = 0
 
+    args.netboxToken = args.netboxToken or os.getenv('NETBOX_TOKEN') or os.getenv('SUPERUSER_API_TOKEN')
     netboxVenvPy = os.path.join(os.path.join(os.path.join(args.netboxDir, 'venv'), 'bin'), 'python')
     manageScript = os.path.join(os.path.join(args.netboxDir, 'netbox'), 'manage.py')
 
@@ -332,6 +341,8 @@ def main():
                 'dropdb',
                 '-h',
                 args.postgresHost,
+                '-p',
+                str(args.postgresPort),
                 '-U',
                 args.postgresUser,
                 '-f',
@@ -346,6 +357,8 @@ def main():
                 'createdb',
                 '-h',
                 args.postgresHost,
+                '-p',
+                str(args.postgresPort),
                 '-U',
                 args.postgresUser,
                 args.postgresDB,
@@ -354,25 +367,13 @@ def main():
             if err != 0:
                 raise Exception(f'Error {err} creating new NetBox database: {results}')
 
-            # make sure permissions are set up right
-            cmd = [
-                'psql',
-                '-h',
-                args.postgresHost,
-                '-U',
-                args.postgresUser,
-                '-c',
-                f'GRANT ALL PRIVILEGES ON DATABASE {args.postgresDB} TO {args.postgresUser}',
-            ]
-            err, results = malcolm_utils.run_process(cmd, env=osEnv, logger=logging)
-            if err != 0:
-                logging.error(f'{err} setting NetBox database permissions: {results}')
-
             # load the backed-up psql dump
             cmd = [
                 'psql',
                 '-h',
                 args.postgresHost,
+                '-p',
+                str(args.postgresPort),
                 '-U',
                 args.postgresUser,
             ]
@@ -393,6 +394,8 @@ def main():
                 'psql',
                 '-h',
                 args.postgresHost,
+                '-p',
+                str(args.postgresPort),
                 '-U',
                 {args.postgresUser},
                 '-c',
@@ -407,6 +410,8 @@ def main():
                 'psql',
                 '-h',
                 args.postgresHost,
+                '-p',
+                str(args.postgresPort),
                 '-U',
                 {args.postgresUser},
                 '-c',

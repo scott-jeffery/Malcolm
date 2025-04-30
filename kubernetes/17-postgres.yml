@@ -1,0 +1,101 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: malcolm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      protocol: TCP
+      name: postgresql
+  selector:
+    app: postgres
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-deployment
+  namespace: malcolm
+  labels:
+    app: postgres
+    role: database
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: postgres
+        role: database
+    spec:
+      containers:
+      - name: postgres-container
+        image: ghcr.io/idaholab/malcolm/postgresql:25.04.0
+        imagePullPolicy: Always
+        stdin: false
+        tty: true
+        ports:
+          - name: postgresql
+            protocol: TCP
+            containerPort: 5432
+        envFrom:
+          - configMapRef:
+              name: process-env
+          - configMapRef:
+              name: ssl-env
+          - configMapRef:
+              name: netbox-common-env
+          - secretRef:
+              name: postgres-env
+        env:
+          - name: VIRTUAL_HOST
+            value: "postgres.malcolm.local"
+        livenessProbe:
+          exec:
+            command:
+            - /usr/local/bin/container_health.sh
+          initialDelaySeconds: 90
+          periodSeconds: 60
+          timeoutSeconds: 15
+          successThreshold: 1
+          failureThreshold: 10
+        volumeMounts:
+          - mountPath: /var/local/ca-trust/configmap
+            name: postgres-var-local-catrust-volume
+          - mountPath: /var/lib/postgresql/data
+            name: postgres-volume
+            subPath: postgres
+      initContainers:
+      - name: postgres-dirinit-container
+        image: ghcr.io/idaholab/malcolm/dirinit:25.04.0
+        imagePullPolicy: Always
+        stdin: false
+        tty: true
+        resources:
+          requests:
+            cpu: "0.25"
+            memory: "128Mi"
+          limits:
+            cpu: "0.5"
+            memory: "256Mi"
+        envFrom:
+          - configMapRef:
+              name: process-env
+        env:
+          - name: PUSER_MKDIR
+            value: "/data/config:postgres"
+        volumeMounts:
+          - name: postgres-volume
+            mountPath: "/data/config"
+      volumes:
+        - name: postgres-var-local-catrust-volume
+          configMap:
+            name: var-local-catrust
+        - name: postgres-volume
+          persistentVolumeClaim:
+            claimName: config-claim

@@ -94,13 +94,19 @@ if [[ -z "$DISABLED" ]] && [[ -n "$SERVICE" ]]; then
          [[ "${!LOCAL_VARNAME}" == "n" ]] ); then
         DISABLED=1
     fi
-    # kinda hacky but check a special case for OpenSearch and Dashboards
+    # kinda hacky special cases
     if [[ "$SERVICE" == "opensearch" ]] && [[ "${OPENSEARCH_PRIMARY:-opensearch-local}" != "opensearch-local" ]]; then
         DISABLED=1
     fi
     if [[ "$SERVICE" == "dashboards" ]] && \
        [[ "${OPENSEARCH_PRIMARY:-opensearch-local}" != "opensearch-local" ]] && \
        [[ "${OPENSEARCH_PRIMARY:-opensearch-local}" != "opensearch-remote" ]]; then
+        DISABLED=1
+    fi
+    if [[ "$SERVICE" == "keycloak" ]] && [[ "${NGINX_AUTH_MODE:-keycloak}" != "keycloak" ]]; then
+        DISABLED=1
+    fi
+    if [[ "$SERVICE" == "netbox" ]] && [[ "${NETBOX_MODE:-local}" != "local" ]]; then
         DISABLED=1
     fi
 fi
@@ -120,6 +126,8 @@ if [[ -n "$SERVICE" ]]; then
             PORT=8440
         elif [[ "$SERVICE" == "freq" ]]; then
             PORT=10004
+        elif [[ "$SERVICE" == "keycloak" ]]; then
+            PORT=8080
         elif [[ "$SERVICE" == "logstash" ]]; then
             PORT=9600
         elif [[ "$SERVICE" == "netbox" ]]; then
@@ -144,7 +152,7 @@ if [[ -n "$DISABLED" ]]; then
 
     if [[ "$FORMAT" == "json" ]]; then
         cat << EOF > index.html
-{ "error": { "code": 422, "message": "The local service $SERVICE has been disabled." } }
+{ "error": { "code": 501, "message": "The local service $SERVICE has been disabled." } }
 EOF
     else
         cat << EOF > index.html

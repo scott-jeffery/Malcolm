@@ -430,11 +430,6 @@ services:
       - type: bind
         bind:
           create_host_path: false
-        source: ./htadmin/config.ini
-        target: /var/www/htadmin/config/config.ini
-      - type: bind
-        bind:
-          create_host_path: false
         source: ./htadmin/metadata
         target: /var/www/htadmin/config/metadata
       - type: bind
@@ -481,7 +476,7 @@ services:
         source: ./netbox/custom-plugins
         target: /opt/netbox-custom-plugins
         read_only: true
-  netbox-postgres:
+  postgres:
     volumes:
       - type: bind
         bind:
@@ -492,7 +487,7 @@ services:
       - type: bind
         bind:
           create_host_path: false
-        source: ./netbox/postgres
+        source: ./postgres
         target: /var/lib/postgresql/data
   redis:
     volumes:

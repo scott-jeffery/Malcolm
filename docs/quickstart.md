@@ -43,14 +43,15 @@ Pulling file-monitor      ... done
 Pulling filebeat          ... done
 Pulling freq              ... done
 Pulling htadmin           ... done
+Pulling keycloak          ... done
 Pulling logstash          ... done
 Pulling netbox            ... done
-Pulling netbox-postgresql ... done
-Pulling redis             ... done
 Pulling nginx-proxy       ... done
 Pulling opensearch        ... done
 Pulling pcap-capture      ... done
 Pulling pcap-monitor      ... done
+Pulling postgresql        ... done
+Pulling redis             ... done
 Pulling suricata          ... done
 Pulling upload            ... done
 Pulling zeek              ... done
@@ -69,6 +70,7 @@ ghcr.io/idaholab/malcolm/file-upload                           {{ site.malcolm.v
 ghcr.io/idaholab/malcolm/filebeat-oss                          {{ site.malcolm.version }}           xxxxxxxxxxxx   3 days ago   624MB
 ghcr.io/idaholab/malcolm/freq                                  {{ site.malcolm.version }}           xxxxxxxxxxxx   3 days ago   132MB
 ghcr.io/idaholab/malcolm/htadmin                               {{ site.malcolm.version }}           xxxxxxxxxxxx   3 days ago   242MB
+ghcr.io/idaholab/malcolm/keycloak                              {{ site.malcolm.version }}           xxxxxxxxxxxx   3 days ago   533MB
 ghcr.io/idaholab/malcolm/logstash-oss                          {{ site.malcolm.version }}           xxxxxxxxxxxx   3 days ago   1.35GB
 ghcr.io/idaholab/malcolm/netbox                                {{ site.malcolm.version }}           xxxxxxxxxxxx   3 days ago   1.01GB
 ghcr.io/idaholab/malcolm/nginx-proxy                           {{ site.malcolm.version }}           xxxxxxxxxxxx   3 days ago   121MB
@@ -92,15 +94,7 @@ instance, wipe the database and restore Malcolm to a fresh state, etc.
 
 ## <a name="UserInterfaceURLs"></a>User interface
 
-A few minutes after starting Malcolm (probably 5 or so for Logstash to be completely loaded, depending on the system), the following services will be accessible:
-
-* Malcolm Landing Page: **https://localhost/**
-* [Arkime](https://arkime.com/): **https://localhost/arkime/**
-* [OpenSearch Dashboards](https://opensearch.org/docs/latest/dashboards/index/): **https://localhost/dashboards/**
-* [Network Traffic Artifact Upload (Web)](upload.md#Upload): **https://localhost/upload/**
-* [Network Traffic Artifact Upload (SFTP)](upload.md#Upload): `sftp://<username>@127.0.0.1:8022/files`
-* [NetBox](asset-interaction-analysis.md#AssetInteractionAnalysis): **https://localhost/netbox/**
-* [Account Management](authsetup.md#AuthBasicAccountManagement): **https://localhost/auth/**
+A few minutes after starting Malcolm (probably 5 or so for Logstash to be completely loaded, depending on the system), the Malcolm landing page and other services will be available via web browser by navigating to the hostname or IP address of the system.
 
 ![Malcolm Landing Page](./images/screenshots/malcolm_landing_page.png)
 

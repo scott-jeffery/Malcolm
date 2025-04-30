@@ -76,10 +76,12 @@ ENV SUPERCRONIC_CRONTAB "/etc/crontab"
 ENV YQ_VERSION "4.45.1"
 ENV YQ_URL "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_"
 
-ENV EVTX_VERSION "0.8.4"
+ENV EVTX_VERSION "0.9.0"
 ENV EVTX_URL "https://github.com/omerbenamram/evtx/releases/download/v${EVTX_VERSION}/evtx_dump-v${EVTX_VERSION}-XXX-unknown-linux-gnu"
 
 USER root
+
+ADD --chmod=644 filebeat/requirements.txt /usr/local/src/
 
 RUN export EVTXARCH=$(uname -m | sed 's/arm64/aarch64/') && \
     export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') && \
@@ -109,7 +111,7 @@ RUN export EVTXARCH=$(uname -m | sed 's/arm64/aarch64/') && \
         unar \
         unzip \
         xz-utils && \
-    python3 -m pip install --no-compile --no-cache-dir --break-system-packages patool entrypoint2 pyunpack python-magic ordered-set supervisor watchdog==6.0.0 && \
+    python3 -m pip install --no-compile --no-cache-dir --break-system-packages -r /usr/local/src/requirements.txt && \
     curl -fsSL -o /usr/local/bin/supercronic "${SUPERCRONIC_URL}${BINARCH}" && \
       chmod +x /usr/local/bin/supercronic && \
     curl -fsSL -o /usr/local/bin/yq "${YQ_URL}${BINARCH}" && \
