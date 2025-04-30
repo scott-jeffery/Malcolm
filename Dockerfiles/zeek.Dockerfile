@@ -33,7 +33,7 @@ USER root
 # see PUSER_CHOWN at the bottom of the file (after the other environment variables it references)
 
 # for download and install
-ARG ZEEK_VERSION=7.1.0-0
+ARG ZEEK_VERSION=7.1.1-0
 ENV ZEEK_VERSION $ZEEK_VERSION
 ARG ZEEK_DEB_ALTERNATE_DOWNLOAD_URL=""
 
@@ -51,6 +51,7 @@ ADD --chmod=755 shared/bin/zeek_install_plugins.sh /usr/local/bin/
 
 # custom one-off packages locally
 ADD zeek/custom-pkg "$ZEEK_DIR"/custom-pkg
+ADD --chmod=644 zeek/requirements.txt /usr/local/src/requirements.txt
 
 ENV SUPERCRONIC_VERSION "0.2.33"
 ENV SUPERCRONIC_URL "https://github.com/aptible/supercronic/releases/download/v$SUPERCRONIC_VERSION/supercronic-linux-"
@@ -117,12 +118,7 @@ RUN export BINARCH=$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/') 
       vim-tiny \
       xxd \
       zlib1g-dev && \
-    python3 -m pip install --break-system-packages --no-cache-dir \
-      dateparser \
-      git+https://github.com/google/mandiant-ti-client \
-      pymisp \
-      stix2 \
-      taxii2-client && \
+    python3 -m pip install --break-system-packages --no-cache-dir -r /usr/local/src/requirements.txt && \
     mkdir -p /tmp/zeek-packages && \
       bash /usr/local/bin/zeek-deb-download.sh -o /tmp/zeek-packages -z "${ZEEK_VERSION}" && \
       dpkg -i /tmp/zeek-packages/*.deb && \

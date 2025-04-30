@@ -149,12 +149,10 @@ The [configuration and tuning](malcolm-config.md#ConfigAndTuning) wizard's quest
     - Malcolm can be run in either of two [profiles](https://docs.docker.com/compose/profiles/): the "malcolm" profile runs all containers including those for log enrichment and indexing, while the "hedgehog" (named as a nod to [Hedgehog Linux](hedgehog.md), Malcolm's [dedicated network sensor OS](live-analysis.md#Hedgehog)) profile rules only the containers required for [live traffic analysis](live-analysis.md#LocalPCAP). When using the "hedgehog" profile, captured network artifacts must be forwarded to another Malcolm instance: its [OpenSearch instance](opensearch-instances.md#OpenSearchInstance) connection parameters (e.g., `https://192.168.122.5:9200`) and Logstash connection parameters (e.g., `192.168.122.5:5044`) must be specified later on in the configuration. See [idaholab/Malcolm#254](https://github.com/idaholab/Malcolm/issues/254) for the origin of this feature.
 * **Should Malcolm use and maintain its own OpenSearch instance?**
     - Malcolm's default standalone configuration is to use a local [OpenSearch](https://opensearch.org/) instance in a container to index and search network traffic metadata. See [OpenSearch and Elasticsearch instances](opensearch-instances.md#OpenSearchInstance) for more information about using a remote OpenSearch or Elasticsearch cluster instead.
-* **Compress local OpenSearch index snapshots?**
-    - Choose whether OpenSearch [index snapshots](https://opensearch.org/docs/2.6/tuning-your-cluster/availability-and-recovery/snapshots/snapshot-management/) should be compressed or not, should users opt to configure them later in [OpenSearch index management](index-management.md#IndexManagement).
 * **Forward Logstash logs to a secondary remote document store?**
     - Whether the primary OpenSearch instance is a locally maintained single-node instance or remote cluster, Malcolm can also be configured to forward logs to a secondary remote OpenSearch instance. See [OpenSearch and Elasticsearch instances](opensearch-instances.md#OpenSearchInstance) for more information about forwarding logs to another OpenSearch instance.
 * **Setting 16g for OpenSearch and 3g for Logstash. Is this OK?**
-    - Two of Malcolm's main components, OpenSearch and Logstash, require a substantial amount of memory. The configuration script will suggest defaults for these values based on the amount of physical memory the system has. The minimum recommended amount of system memory for Malcolm is 16 GB. Users should not use a value under 10 GB for OpenSearch and 2500 MB for Logstash.
+    - Two of Malcolm's main components, OpenSearch and Logstash, require a substantial amount of memory. The configuration script will suggest defaults for these values based on the amount of physical memory the system has. The minimum recommended amount of system memory for Malcolm is 24 GB. Users should not use a value under 10 GB for OpenSearch and 2500 MB for Logstash.
 * **Setting 3 workers for Logstash pipelines. Is this OK?**
     - This setting is used to tune the performance and resource utilization of the the `logstash` container. The default is calculated based on the number of logical CPUs the system has. See [Tuning and Profiling Logstash Performance](https://www.elastic.co/guide/en/logstash/current/tuning-logstash.html), [`logstash.yml`](https://www.elastic.co/guide/en/logstash/current/logstash-settings-file.html) and [Multiple Pipelines](https://www.elastic.co/guide/en/logstash/current/multiple-pipelines.html).
 * **Restart Malcolm upon system or container daemon restart?**
@@ -165,16 +163,12 @@ The [configuration and tuning](malcolm-config.md#ConfigAndTuning) wizard's quest
         + unless-stopped - similar to always, except that when the container is stopped (manually or otherwise), it is not restarted even after Docker daemon restarts; this is usually a good choice
 * **Require encrypted HTTPS connections?**
     - Malcolm uses [TLS](authsetup.md#TLSCerts) encryption for its web browser-accessible user interfaces. Answering **Y** to this question is almost always preferred. The only situation where **N** would be appropriate would be when running Malcolm behind a third-party reverse proxy (e.g., [Traefik](https://doc.traefik.io/traefik/) or [Caddy](https://caddyserver.com/docs/quick-starts/reverse-proxy)) to handle the issuance of the certificates automatically and to broker the connections between clients and Malcolm. Reverse proxies such as these often implement the [ACME](https://datatracker.ietf.org/doc/html/rfc8555) protocol for domain name authentication and can be used to request certificates from certificate authorities such as [Let's Encrypt](https://letsencrypt.org/how-it-works/). In this configuration, the reverse proxy will be encrypting the connections instead of Malcolm. Users should ensure they understand these implications and ensure that external connections cannot reach ports over which Malcolm will be communicating without encryption, including verifying the local firewall configuration, when answering **N** to this question.
+* **Which IP version does the network support? (IPv4, IPv6, or both)**
+    - This question is used to configure the [resolver directive](https://nginx.org/en/docs/http/ngx_http_core_module.html#resolver) for Malcolm's nginx reverse proxy. Note that this selection does not affect Malcolm's ability to capture or inspect IPv4/IPv6 traffic: it is only used if and when nginx itself needs to resolve hostnames in the network in which Malcolm resides. See related settings for nginx in the [`nginx.env`](malcolm-config.md#MalcolmConfigEnvVars) configuration file.
 * **Will Malcolm be running behind another reverse proxy (Traefik, Caddy, etc.)?**
     - See the previous question. If Malcolm is configured behind a remote proxy, Malcolm can prompt users to *Configure labels for Traefik?* to allow it to identify itself to Traefik.
 * **Specify external container network name (or leave blank for default networking)**
     - This configures Malcolm to use [custom container networks](https://docs.docker.com/compose/networking/#specify-custom-networks). If unsure, leave this blank.
-* **Select authentication method**
-    - Choose **Basic** to use Malcolm's own built-in [local account management](authsetup.md#AuthBasicAccountManagement), **LDAP** to use [Lightweight Directory Access Protocol (LDAP) authentication](authsetup.md#AuthLDAP) or **None** to not require authentication (not recommended)
-* **Select LDAP server compatibility type**
-    - This question allows users to specify Microsoft Active Directory compatibility (**winldap**) or generic LDAP compatibility (**openldap**, for OpenLDAP, glauth, etc.) when using [LDAP authentication](authsetup.md#AuthLDAP)
-* **Use StartTLS (rather than LDAPS) for LDAP connection security?**
-    - When using LDAP authentication, this question allows users to configure [LDAP connection security](authsetup.md#AuthLDAPSecurity)
 * **Store PCAP, log and index files in /home/user/Malcolm?**
     - Malcolm generates a number of large file sets during normal operation: PCAP files, Zeek or Suricata logs, OpenSearch indices, etc. By default all of these are stored in subdirectories in the Malcolm installation directory. This question allows users to specify alternative storage location(s) (for example, a separate dedicated drive or RAID volume) for these artifacts.
 * **Enable index management policies (ILM/ISM) in Arkime?**
@@ -287,8 +281,8 @@ The [configuration and tuning](malcolm-config.md#ConfigAndTuning) wizard's quest
         + When querying a [TAXII](zeek-intel.md#ZeekIntelSTIX), [MISP](zeek-intel.md#ZeekIntelMISP), or [Mandiant](zeek-intel.md#ZeekIntelMandiant) threat intelligence feed, only process threat indicators created or modified since the time represented by this value; it may be either a fixed date/time (`01/01/2025`) or relative interval (`7 days ago`).
     - **`Intel::item_expiration` timeout for intelligence items (`-1min` to disable)**
         + Specifies the value for Zeek's [`Intel::item_expiration`](https://docs.zeek.org/en/current/scripts/base/frameworks/intel/main.zeek.html#id-Intel::item_expiration) timeout as used by the [Zeek Intelligence Framework](zeek-intel.md#ZeekIntel) (default `-1min`, which disables item expiration).
-* **Should Malcolm run and maintain an instance of NetBox, an infrastructure resource modeling tool?**
-    - Answer **Y** to enable [NetBox](https://netbox.dev/), a tool for modeling networks and documenting network assets.
+* **Should Malcolm utilize NetBox, an infrastructure resource modeling tool?**
+    - Specifies whether Malcolm will use [NetBox](https://netbox.dev/), a tool for modeling networks and documenting network assets; options are `local` (use an embedded instance NetBox maintained by Malcolm), `remote` (use a remote instance of NetBox), or `disabled` (do not use NetBox).
 * **Should Malcolm enrich network traffic using NetBox?**
     - Answer **Y** to [cross-reference](asset-interaction-analysis.md#AssetInteractionAnalysis) network traffic logs against the NetBox asset inventory.
 * **Should Malcolm automatically populate NetBox inventory based on observed network traffic?**
@@ -342,7 +336,7 @@ Upon configuring time synchronization, a "Time synchronization configured succes
 
 Once the [configuration](#MalcolmConfig) questions have been completed as described above, users can click the circular yellow Malcolm icon the panel at the top of the [desktop](#MalcolmDesktop) to start Malcolm. As authentication has not yet been configured, users will be prompted to do so. This authentication setup can be run again later by running [`./scripts/auth_setup`](authsetup.md#AuthSetup) from the Malcolm installation directory.
 
-![Setting up authentication on Malcolm's first run](./images/screenshots/iso_install_auth_setup.png)
+![Setting up authentication on Malcolm's first run](./images/screenshots/auth_setup.png)
 
 *The Configure Authentication dialog*
 
@@ -350,18 +344,30 @@ As this is the first time setting up authentication, ensure the **all** option i
 
 Users will be prompted to do the following:
 
+* **Select authentication method**
+    - Choose **basic**, to use [TLS-encrypted HTTP basic](#AuthBasicAccountManagement) authentication (default); **ldap** [Lightweight Directory Access Protocol (LDAP)](#AuthLDAP) authentication; **keycloak** to use [authentication managed by Malcolm's embedded Keycloak](#AuthKeycloakEmbedded) instance;  **keycloak_remote** to use [authentication managed by a remote Keycloak](#AuthKeycloakRemote) instance; or, **no_authentication** to disable authentication (not recommended)
+* **Select LDAP server compatibility type**
+    - This question allows users to specify Microsoft Active Directory compatibility (**winldap**) or generic LDAP compatibility (**openldap**, for OpenLDAP, glauth, etc.) when using [LDAP authentication](authsetup.md#AuthLDAP)
+* **Use StartTLS (rather than LDAPS) for LDAP connection security?**
+    - When using LDAP authentication, this question allows users to configure [LDAP connection security](authsetup.md#AuthLDAPSecurity)
 * **Store administrator username/password for local Malcolm access**
     - This allows the user to specify the administrator credentials when using [local account management](authsetup.md#AuthBasicAccountManagement) (instead of LDAP) for authentication.
 * **(Re)generate self-signed certificates for HTTPS access**
     - This generates the self-signed [TLS certificates](authsetup.md#TLSCerts) used for encrypting the connections between users' web browsers and Malcolm.
 * **(Re)generate self-signed certificates for a remote log forwarder**
     - This generates the self-signed [TLS certificates](authsetup.md#TLSCerts) for communications from a remote log forwarder (such as Hedgehog Linux or forwarders for other [third-party logs](third-party-logs.md#ThirdPartyLogs)).
+* **Configure Keycloak**
+    - Users may answer **Y** to configure [Keycloak](https://www.keycloak.org/) as Malcolm's provider of user authentication. See [**Configure authentication: Keycloak**](authsetup.md#AuthKeycloak) for more information.
 * **Configure remote primary or secondary OpenSearch/Elasticsearch instance**
     - Users should answer **N** if using Malcolm's local OpenSearch instance, or **Y** to specify credentials for a remote OpenSearch or Elasticsearch cluster (see [OpenSearch and Elasticsearch instances](opensearch-instances.md#OpenSearchInstance)).
 * **Store username/password for OpenSearch Alerting email sender account**
     - Users may answer **Y** to specify credentials for [Email Sender Accounts](alerting.md#AlertingEmail) to be used with OpenSearch Dashboards' alerting plugin.
 * **(Re)generate internal passwords for NetBox**
-    - If users answered **Y** to "Should Malcolm run and maintain an instance of NetBox...?" during the configuration questions, they should also answer **Y** to this question at least the first time authentication is configured.
+    - If users answered **Y** to "Should Malcolm run and maintain an instance of NetBox...?" during the configuration questions, they should also answer **Y** to this question the first time authentication is configured. Note that once NetBox data has been populated, regenerating these passwords will make it impossible for Malcolm to access that existing data. For this reason, subsequent operations to generate these passwords will warn the user: "Internal passwords for NetBox already exist. Overwriting them will break access to a populated NetBox database. Are you sure?" Users should use make a [backup](asset-interaction-analysis.md#NetBoxBackup) of NetBox data before regenerating these passwords.
+* **(Re)generate internal superuser passwords for PostgreSQL**
+    - Malcolm uses PostgreSQL to store the configuration and state of several components, including NetBox. Users should answer **Y** to this question the first time authentication is configured. The same warning described for the previous question applies here: users should not regenerate the internal superuser passwords for PostgreSQL without first backing up their existing NetBox configuration to restore again afterwards.
+* **(Re)generate internal passwords for Redis**
+    - Malcolm uses Redis to store session information for several components, including NetBox. Users should answer **Y** to this question the first time authentication is configured.
 * **Store password hash secret for Arkime viewer cluster**
     - This value corresponds to the `passwordSecret` value in Arkime's [config.ini file](https://arkime.com/settings). Arkime uses this value to secure communication (specifically, the connection used when Arkime viewer retrieves a PCAP payload for display in its user interface) between Arkime viewers in instances of Malcolm and Hedgehog Linux. In other words, this value needs to be the same for the Malcolm instance and all of the instances of Hedgehog Linux forwarding Arkime sessions to that Malcolm instance. The corresponding value is set when setting up [Arkime capture](#Hedgehogarkime-capture) during the Hedgehog Linux configuration.
 * **Transfer self-signed client certificates to a remote log forwarder**
@@ -391,6 +397,9 @@ At the end of the installation process, users will be prompted with a few self-e
 * **Allow SSH password authentication?** *(Caution: password authentication is less secure than public/private key pairs)*
 
 Following these prompts, the installer will reboot and Hedgehog Linux will boot into [kiosk mode](hedgehog-boot.md#HedgehogKioskMode).
+
+
+![Kiosk mode sensor menu: resource statistics](./images/hedgehog/images/kiosk_mode_sensor_menu.png)
 
 Kiosk mode can be exited by connecting an external USB keyboard and pressing **Alt+F4**, upon which the *sensor* user's desktop is shown.
 

@@ -21,6 +21,7 @@ from malcolm_utils import (
     LoadStrIfJson,
     remove_suffix,
     run_process,
+    touch,
 )
 
 from collections import defaultdict, namedtuple
@@ -127,6 +128,9 @@ BoundPathReplacer = namedtuple(
     rename=False,
 )
 
+# define environment variables to be set in .env files
+EnvValue = namedtuple("EnvValue", ["provided", "envFile", "key", "value"], rename=False)
+
 # URLS for figuring things out if something goes wrong
 DOCKER_INSTALL_URLS = defaultdict(lambda: 'https://docs.docker.com/install/')
 DOCKER_INSTALL_URLS[PLATFORM_WINDOWS] = [
@@ -154,6 +158,17 @@ class OrchestrationFramework(Flag):
 
 
 OrchestrationFrameworksSupported = OrchestrationFramework.DOCKER_COMPOSE | OrchestrationFramework.KUBERNETES
+
+
+##################################################################################################
+def GetMalcolmPath():
+    return MalcolmPath
+
+
+def SetMalcolmPath(val):
+    global MalcolmPath
+    MalcolmPath = val
+    return MalcolmPath
 
 
 ##################################################################################################
@@ -220,8 +235,21 @@ def GetMemMegabytesFromJavaOptsLine(val):
 
 
 ##################################################################################################
+def ParseK8sMemoryToMib(val):
+    val = str(val).strip()
+    units = {'Ki': 1 / 1024, 'Mi': 1, 'Gi': 1024, 'Ti': 1024 * 1024}
+
+    for unit in units:
+        if val.endswith(unit):
+            value = float(val.replace(unit, ''))
+            return int(value * units[unit])
+
+    return 0
+
+
+##################################################################################################
 def GetUidGidFromEnv(configDir=None):
-    configDirToCheck = configDir if configDir and os.path.isdir(configDir) else os.path.join(MalcolmPath, 'config')
+    configDirToCheck = configDir if configDir and os.path.isdir(configDir) else os.path.join(GetMalcolmPath(), 'config')
     uidGidDict = defaultdict(str)
     if dotEnvImported := DotEnvDynamic():
         pyPlatform = platform.system()
@@ -236,6 +264,52 @@ def GetUidGidFromEnv(configDir=None):
                 uidGidDict['PGID'] = envValues['PGID']
 
     return uidGidDict
+
+
+##################################################################################################
+# takes an array of EnvValue namedtuple (see above) and updates the values in the specified .env files
+def UpdateEnvFiles(envValues, chmodFlag=None):
+    result = False
+    if dotEnvImported := DotEnvDynamic():
+        result = True
+        for val in [v for v in envValues if v.provided]:
+            try:
+                touch(val.envFile)
+            except Exception:
+                pass
+
+            try:
+                oldDotEnvVersion = False
+                try:
+                    dotEnvImported.set_key(
+                        val.envFile,
+                        val.key,
+                        str(val.value),
+                        quote_mode='never',
+                        encoding='utf-8',
+                    )
+                except TypeError:
+                    oldDotEnvVersion = True
+
+                if oldDotEnvVersion:
+                    dotEnvImported.set_key(
+                        val.envFile,
+                        val.key,
+                        str(val.value),
+                        quote_mode='never',
+                    )
+
+            except Exception as e:
+                eprint(f"Setting value for {val.key} in {val.envFile} module failed ({type(e).__name__}): {e}")
+                result = False
+
+            if chmodFlag is not None:
+                try:
+                    os.chmod(val.envFile, chmodFlag)
+                except Exception:
+                    pass
+
+    return result
 
 
 ###################################################################################################
@@ -783,19 +857,18 @@ def DotEnvDynamic(debug=False, forceInteraction=False):
 # do the required auth files for Malcolm exist?
 def MalcolmAuthFilesExist(configDir=None):
     configDirToCheck = (
-        configDir if configDir is not None and os.path.isdir(configDir) else os.path.join(MalcolmPath, 'config')
+        configDir if configDir is not None and os.path.isdir(configDir) else os.path.join(GetMalcolmPath(), 'config')
     )
     return (
-        os.path.isfile(os.path.join(MalcolmPath, os.path.join('nginx', 'htpasswd')))
-        and os.path.isfile(os.path.join(MalcolmPath, os.path.join('nginx', 'nginx_ldap.conf')))
-        and os.path.isfile(os.path.join(MalcolmPath, os.path.join('nginx', os.path.join('certs', 'cert.pem'))))
-        and os.path.isfile(os.path.join(MalcolmPath, os.path.join('nginx', os.path.join('certs', 'key.pem'))))
-        and os.path.isfile(os.path.join(MalcolmPath, os.path.join('htadmin', 'config.ini')))
+        os.path.isfile(os.path.join(GetMalcolmPath(), os.path.join('nginx', 'htpasswd')))
+        and os.path.isfile(os.path.join(GetMalcolmPath(), os.path.join('nginx', 'nginx_ldap.conf')))
+        and os.path.isfile(os.path.join(GetMalcolmPath(), os.path.join('nginx', os.path.join('certs', 'cert.pem'))))
+        and os.path.isfile(os.path.join(GetMalcolmPath(), os.path.join('nginx', os.path.join('certs', 'key.pem'))))
         and os.path.isfile(os.path.join(configDirToCheck, 'netbox-secret.env'))
-        and os.path.isfile(os.path.join(configDirToCheck, 'netbox-postgres.env'))
+        and os.path.isfile(os.path.join(configDirToCheck, 'postgres.env'))
         and os.path.isfile(os.path.join(configDirToCheck, 'redis.env'))
         and os.path.isfile(os.path.join(configDirToCheck, 'auth.env'))
-        and os.path.isfile(os.path.join(MalcolmPath, '.opensearch.primary.curlrc'))
+        and os.path.isfile(os.path.join(GetMalcolmPath(), '.opensearch.primary.curlrc'))
     )
 
 
@@ -896,44 +969,49 @@ LOG_IGNORE_REGEX = re.compile(
 .+(
     deprecated
   | "GET\s+/\s+HTTP/1\.\d+"\s+200\s+-
-  | \bGET.+\b302\s+30\b
+  | "netbox"\s+application\s+started
   | (async|output)\.go.+(reset\s+by\s+peer|Connecting\s+to\s+backoff|backoff.+established$)
-  | /(opensearch-dashboards|dashboards|kibana)/(api/ui_metric/report|internal/search/(es|opensearch))
   | (Error\s+during\s+file\s+comparison|File\s+was\s+renamed):\s+/zeek/live/logs/
+  | (GET|POST)\s+/(fields|get|valueActions|views|fieldActions)\b.+bytes\s+[\d\.]+\s+ms
+  | (GET|POST|PATCH|DELETE)\s+/netbox/.+HTTP/[\d\.]+.+\b20[\d]\b
+  | (relation|SELECT)\s+"django_content_type"
+  | /(opensearch-dashboards|dashboards|kibana)/(api/ui_metric/report|internal/search/(es|opensearch))
   | /_ns_/nstest\.html
   | /proc/net/tcp6:\s+no\s+such\s+file\s+or\s+directory
   | /usr/share/logstash/x-pack/lib/filters/geoip/database_manager
+  | \[notice\].+app\s+process\s+\d+\s+exited\s+with\s+code\s+0\b
   | \b(d|es)?stats\.json
   | \b1.+GET\s+/\s+.+401.+curl
+  | \bGET.+\b302\s+30\b
   | _cat/indices
+  | Background\s+saving\s+started
+  | Background\s+saving\s+terminated\s+with\s+success
   | branding.*config\s+is\s+not\s+found\s+or\s+invalid
   | but\s+there\s+are\s+no\s+living\s+connections
-  | Connecting\s+to\s+backoff
+  | \d+\s+changes\s+in\s+\d+\s+seconds\.\s+Saving
   | Cleaning\s+registries\s+for\s+queue:
+  | Connecting\s+to\s+backoff
   | curl.+localhost.+GET\s+/api/status\s+200
+  | DB\s+saved\s+on\s+disk
   | DEPRECATION
   | descheduling\s+job\s*id
-  | (relation|SELECT)\s+"django_content_type"
   | eshealth
   | esindices/list
   | executing\s+attempt_(transition|set_replica_count)\s+for
   | failed\s+to\s+get\s+tcp6?\s+stats\s+from\s+/proc
   | Falling\s+back\s+to\s+single\s+shard\s+assignment
+  | Fork\s+CoW\s+for\s+RDB
   | GET\s+/(_cat/health|api/status|sessions2-|arkime_\w+).+HTTP/[\d\.].+\b200\b
   | GET\s+/\s+.+\b200\b.+ELB-HealthChecker
-  | (GET|POST|PATCH|DELETE)\s+/netbox/.+HTTP/[\d\.]+.+\b20[\d]\b
-  | (GET|POST)\s+/(fields|get|valueActions|views|fieldActions)\b.+bytes\s+[\d\.]+\s+ms
+  | i:\s+pcap:\s+read\s+\d+\s+file
   | Info:\s+checksum:\s+No\s+packets\s+with\s+invalid\s+checksum,\s+assuming\s+checksum\s+offloading\s+is\s+NOT\s+used
   | Info:\s+logopenfile:\s+eve-log\s+output\s+device\s+\(regular\)\s+initialized:\s+eve\.json
-  | Info:\s+unix-socket:
   | Info:\s+pcap:\s+(Starting\s+file\s+run|pcap\s+file)
-  | i:\s+pcap:\s+read\s+\d+\s+file
+  | Info:\s+unix-socket:
+  | kube-probe/
   | loaded\s+config\s+'/etc/netbox/config/
   | LOG:\s+checkpoint\s+(complete|starting)
-  | "netbox"\s+application\s+started
-  | \[notice\].+app\s+process\s+\d+\s+exited\s+with\s+code\s+0\b
   | Notice:\s+pcap:\s+read\s+(\d+)\s+file
-  | kube-probe/
   | POST\s+/(arkime_\w+)(/\w+)?/_(d?stat|doc|search).+HTTP/[\d\.].+\b20[01]\b
   | POST\s+/_bulk\s+HTTP/[\d\.].+\b20[01]\b
   | POST\s+/server/php/\s+HTTP/\d+\.\d+"\s+\d+\s+\d+.*:8443/
@@ -949,9 +1027,9 @@ LOG_IGNORE_REGEX = re.compile(
   | Successfully\s+handled\s+GET\s+request\s+for\s+'/'
   | Test\s+run\s+complete.*:failed=>0,\s*:errored=>0\b
   | throttling\s+index
+  | unix-socket:.*(pcap-file\.tenant-id\s+not\s+set|Marking\s+current\s+task\s+as\s+done|Resetting\s+engine\s+state)
   | update_mapping
   | updating\s+number_of_replicas
-  | unix-socket:.*(pcap-file\.tenant-id\s+not\s+set|Marking\s+current\s+task\s+as\s+done|Resetting\s+engine\s+state)
   | use_field_mapping
   | Using\s+geoip\s+database
   | Warning:\s+app-layer-

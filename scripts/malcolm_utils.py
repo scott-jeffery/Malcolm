@@ -8,6 +8,7 @@ import enum
 import hashlib
 import ipaddress
 import json
+import mmap
 import os
 import re
 import socket
@@ -202,6 +203,26 @@ def deep_set(d, keys, value, deleteIfNone=False):
 
 
 ###################################################################################################
+# Recursively merges 'source' dict into 'destination' dict. Values from 'source' override those
+#    in 'destination' at the same path.
+def deep_merge(source, destination):
+    for key, value in source.items():
+        if isinstance(value, dict) and isinstance(destination.get(key), dict):
+            destination[key] = deep_merge(value, destination[key])
+        else:
+            destination[key] = value
+    return destination
+
+
+def deep_merge_in_place(source, destination):
+    for key, value in source.items():
+        if isinstance(value, dict) and isinstance(destination.get(key), dict):
+            deep_merge(value, destination[key])
+        else:
+            destination[key] = value
+
+
+###################################################################################################
 # recursive dictionary key search
 def dictsearch(d, target):
     val = filter(
@@ -325,6 +346,16 @@ def get_iterable(x):
         return x
     else:
         return (x,)
+
+
+# remove "empty" items from a collection
+def remove_falsy(obj):
+    if isinstance(obj, dict):
+        return {k: v for k, v in ((k, remove_falsy(v)) for k, v in obj.items()) if v}
+    elif isinstance(obj, list):
+        return [v for v in (remove_falsy(i) for i in obj) if v]
+    else:
+        return obj if obj else None
 
 
 ###################################################################################################
@@ -769,3 +800,47 @@ def run_subprocess(command, stdout=True, stderr=False, stdin=None, timeout=60):
             output.extend(p.stdout.splitlines())
 
     return retcode, output
+
+
+###################################################################################################
+# different methods for getting line counts of text files
+
+
+# run "wc -l" in a subprocess on many files (fastest for large numbers of files)
+def count_lines_wc_batch(file_paths):
+    if file_paths:
+        try:
+            result = subprocess.run(["wc", "-l"] + file_paths, capture_output=True, text=True, check=True)
+            return [
+                (file, int(count))
+                for line in result.stdout.strip().split("\n")
+                if (count := line.split(maxsplit=1)[0]) and (file := line.split(maxsplit=1)[1].strip()) != "total"
+            ]
+        except Exception as e:
+            print(f"Error counting lines of {file_paths}: {e}", file=sys.stderr)
+            return [(file_path, 0) for file_path in file_paths]
+    else:
+        return []
+
+
+# run "wc -l" in a subprocess on a single file (not particularly efficient, but faster than pure python)
+def count_lines_wc(file_path):
+    try:
+        result = subprocess.run(["wc", "-l", file_path], capture_output=True, text=True, check=True)
+        return file_path, int(result.stdout.split()[0])
+    except Exception as e:
+        print(f"Error counting lines of {file_path}: {e}", file=sys.stderr)
+        return file_path, 0
+
+
+# use memory-mapped files and count "\n" (fastest for many small files as it avoids subprocess overhead)
+def count_lines_mmap(file_path):
+    try:
+        if os.path.getsize(file_path):
+            with open(file_path, "r") as f:
+                return file_path, mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ).read().count(b"\n")
+        else:
+            return file_path, 0
+    except Exception as e:
+        print(f"Error counting lines of {file_path}: {e}", file=sys.stderr)
+        return file_path, 0

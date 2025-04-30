@@ -48,12 +48,14 @@ from malcolm_common import (
     DotEnvDynamic,
     DownloadToFile,
     DumpYaml,
+    EnvValue,
     GetPlatformOSRelease,
     HOMEBREW_INSTALL_URLS,
     KubernetesDynamic,
     LoadYaml,
     MalcolmCfgRunOnceFile,
-    MalcolmPath,
+    GetMalcolmPath,
+    SetMalcolmPath,
     OrchestrationFramework,
     OrchestrationFrameworksSupported,
     PLATFORM_LINUX,
@@ -68,6 +70,7 @@ from malcolm_common import (
     PROFILE_KEY,
     RequestsDynamic,
     ScriptPath,
+    UpdateEnvFiles,
     UserInputDefaultsBehavior,
     UserInterfaceMode,
     YAMLDynamic,
@@ -86,6 +89,7 @@ from malcolm_utils import (
     deep_set,
     eprint,
     flatten,
+    get_iterable,
     LoadFileIfJson,
     remove_prefix,
     remove_suffix,
@@ -141,23 +145,22 @@ class ConfigOptions(IntEnum):
     RestartMode = 7
     RequireHTTPS = 8
     DockerNetworking = 9
-    AuthMethod = 10
-    StorageLocations = 11
-    ILMISM = 12
-    StorageManagement = 13
-    AutoArkime = 14
-    AutoSuricata = 15
-    SuricataRuleUpdate = 16
-    AutoZeek = 17
-    ICS = 18
-    Enrichment = 19
-    OpenPorts = 20
-    FileCarving = 21
-    ZeekIntel = 22
-    NetBox = 23
-    Capture = 24
-    DarkMode = 25
-    PostConfig = 26
+    StorageLocations = 10
+    ILMISM = 11
+    StorageManagement = 12
+    AutoArkime = 13
+    AutoSuricata = 14
+    SuricataRuleUpdate = 15
+    AutoZeek = 16
+    ICS = 17
+    Enrichment = 18
+    OpenPorts = 19
+    FileCarving = 20
+    ZeekIntel = 21
+    NetBox = 22
+    Capture = 23
+    DarkMode = 24
+    PostConfig = 25
 
 
 ###################################################################################################
@@ -418,19 +421,15 @@ class Installer(object):
                 and InstallerYesOrNo(f'Pull Malcolm images?', default=False, forceInteraction=False)
             ):
                 for priv in (False, True):
-                    ecode, out = self.run_process(
-                        [
-                            self.dockerComposeCmd,
-                            '-f',
-                            composeFile,
-                            '--profile=malcolm',
-                            'pull',
-                            '--quiet',
-                        ],
-                        privileged=priv,
-                    )
+                    pullCmd = [self.dockerComposeCmd, '-f', composeFile, '--profile=malcolm', 'pull', '--quiet']
+                    ecode, out = self.run_process(pullCmd, privileged=priv)
                     if ecode == 0:
                         break
+                    elif any('unrecognized arguments: --quiet' in s for s in out):
+                        pullCmd.remove('--quiet')
+                        ecode, out = self.run_process(pullCmd, privileged=priv)
+                        if ecode == 0:
+                            break
 
                 if ecode == 0:
                     result = True
@@ -475,7 +474,7 @@ class Installer(object):
 
             # extract runtime files
             if installPath and os.path.isdir(installPath):
-                MalcolmPath = installPath
+                SetMalcolmPath(installPath)
                 if self.debug:
                     eprint(f"Created {installPath} for Malcolm runtime files")
 
@@ -624,7 +623,6 @@ class Installer(object):
         logstashHost = 'logstash:5044'
         syslogPortDict = defaultdict(lambda: 0)
         sftpOpen = False
-        indexSnapshotCompressed = False
         behindReverseProxy = False
         dockerNetworkExternalName = ""
         zeekIntelParamsProvided = False
@@ -632,6 +630,8 @@ class Installer(object):
         zeekIntelFeedSince = '7 days ago'
         zeekIntelItemExipration = '-1min'
         zeekIntelOnStartup = True
+        nginxResolverIpv4Off = False
+        nginxResolverIpv6Off = False
 
         prevStep = None
         currentStep = ConfigOptions.Preconfig
@@ -743,12 +743,6 @@ class Installer(object):
                         ) and InstallerYesOrNo(
                             f'Require SSL certificate validation for communication with {opensearchPrimaryLabel} instance?',
                             default=args.opensearchPrimarySslVerify,
-                            extraLabel=BACK_LABEL,
-                        )
-                    else:
-                        indexSnapshotCompressed = InstallerYesOrNo(
-                            f'Compress {opensearchPrimaryLabel} index snapshots?',
-                            default=args.indexSnapshotCompressed,
                             extraLabel=BACK_LABEL,
                         )
 
@@ -910,6 +904,32 @@ class Installer(object):
                                 default=False,
                                 extraLabel=BACK_LABEL,
                             )
+
+                        nginxResolverChoices = []
+                        allowedResolverChoices = {
+                            'ipv4': [
+                                DatabaseMode.OpenSearchLocal,
+                                'IPv4',
+                                args.nginxResolverIpv4,
+                            ],
+                            'ipv6': [
+                                DatabaseMode.OpenSearchRemote,
+                                'IPv6',
+                                args.nginxResolverIpv6,
+                            ],
+                        }
+                        loopBreaker = CountUntilException(MaxAskForValueCount, 'Both ')
+                        while (not nginxResolverChoices) and loopBreaker.increment():
+                            nginxResolverChoices = InstallerChooseMultiple(
+                                'Which IP version does the network support? (IPv4, IPv6, or both)',
+                                choices=[
+                                    (x, allowedResolverChoices[x][1], allowedResolverChoices[x][2])
+                                    for x in list(allowedResolverChoices.keys())
+                                ],
+                                extraLabel=BACK_LABEL,
+                            )
+                        nginxResolverIpv4Off = 'ipv4' not in nginxResolverChoices
+                        nginxResolverIpv6Off = 'ipv6' not in nginxResolverChoices
                     else:
                         nginxSSL = True
 
@@ -982,64 +1002,6 @@ class Installer(object):
                     )
 
                 ###################################################################################
-                elif currentStep == ConfigOptions.AuthMethod:
-                    allowedAuthModes = {
-                        'Basic': 'true',
-                        'Lightweight Directory Access Protocol (LDAP)': 'false',
-                        'None': 'no_authentication',
-                    }
-                    authMode = None if (malcolmProfile == PROFILE_MALCOLM) else 'Basic'
-                    loopBreaker = CountUntilException(MaxAskForValueCount, 'Invalid authentication method')
-                    while authMode not in list(allowedAuthModes.keys()) and loopBreaker.increment():
-                        authMode = InstallerChooseOne(
-                            'Select authentication method',
-                            choices=[
-                                (
-                                    x,
-                                    '',
-                                    x
-                                    == (
-                                        'Lightweight Directory Access Protocol (LDAP)' if args.authModeLDAP else 'Basic'
-                                    ),
-                                )
-                                for x in list(allowedAuthModes.keys())
-                            ],
-                            extraLabel=BACK_LABEL,
-                        )
-
-                    ldapStartTLS = False
-                    ldapServerTypeDefault = args.ldapServerType if args.ldapServerType else 'winldap'
-                    ldapServerType = ldapServerTypeDefault
-                    if 'ldap' in authMode.lower():
-                        allowedLdapModes = ('winldap', 'openldap')
-                        ldapServerType = args.ldapServerType if args.ldapServerType else None
-                        loopBreaker = CountUntilException(MaxAskForValueCount, 'Invalid LDAP server compatibility type')
-                        while ldapServerType not in allowedLdapModes and loopBreaker.increment():
-                            ldapServerType = InstallerChooseOne(
-                                'Select LDAP server compatibility type',
-                                choices=[(x, '', x == ldapServerTypeDefault) for x in allowedLdapModes],
-                                extraLabel=BACK_LABEL,
-                            )
-                        ldapStartTLS = InstallerYesOrNo(
-                            'Use StartTLS (rather than LDAPS) for LDAP connection security?',
-                            default=args.ldapStartTLS,
-                            extraLabel=BACK_LABEL,
-                        )
-                        try:
-                            with open(
-                                os.path.join(os.path.realpath(os.path.join(ScriptPath, "..")), ".ldap_config_defaults"),
-                                "w",
-                            ) as ldapDefaultsFile:
-                                print(f"LDAP_SERVER_TYPE='{ldapServerType}'", file=ldapDefaultsFile)
-                                print(
-                                    f"LDAP_PROTO='{'ldap://' if ldapStartTLS else 'ldaps://'}'",
-                                    file=ldapDefaultsFile,
-                                )
-                                print(f"LDAP_PORT='{3268 if ldapStartTLS else 3269}'", file=ldapDefaultsFile)
-                        except Exception:
-                            pass
-
-                ###################################################################################
                 elif currentStep == ConfigOptions.StorageLocations:
                     # directories for data volume mounts (PCAP storage, Zeek log storage, OpenSearch indexes, etc.)
 
@@ -1082,7 +1044,6 @@ class Installer(object):
                             indexDirDefault = os.path.join(malcolm_install_path, indexDir)
                     indexDirFull = os.path.realpath(indexDirDefault)
 
-                    indexSnapshotCompressed = False
                     if args.indexSnapshotDir:
                         indexSnapshotDirDefault = args.indexSnapshotDir
                         indexSnapshotDir = indexSnapshotDirDefault
@@ -1236,7 +1197,7 @@ class Installer(object):
                                             )
                                             break
 
-                                # opensearch snapshot repository directory and compression
+                                # opensearch snapshot repository directory
                                 if not InstallerYesOrNo(
                                     'Store OpenSearch index snapshots in {}?'.format(indexSnapshotDirDefault),
                                     default=not bool(args.indexSnapshotDir),
@@ -1888,12 +1849,46 @@ class Installer(object):
 
                 ###################################################################################
                 elif currentStep == ConfigOptions.NetBox:
-                    # NetBox
-                    netboxEnabled = (malcolmProfile == PROFILE_MALCOLM) and InstallerYesOrNo(
-                        'Should Malcolm run and maintain an instance of NetBox, an infrastructure resource modeling tool?',
-                        default=args.netboxEnabled,
-                        extraLabel=BACK_LABEL,
+                    netboxOptions = (
+                        ('disabled', 'disable NetBox'),
+                        ('local', 'Run and maintain an embedded NetBox instance'),
+                        ('remote', 'Use a remote NetBox instance'),
                     )
+                    loopBreaker = CountUntilException(MaxAskForValueCount)
+                    netboxMode = None
+                    netboxUrl = ''
+                    if malcolmProfile == PROFILE_MALCOLM:
+                        while netboxMode not in [x[0] for x in netboxOptions] and loopBreaker.increment():
+                            netboxMode = InstallerChooseOne(
+                                'Should Malcolm utilize NetBox, an infrastructure resource modeling tool?',
+                                choices=[
+                                    (
+                                        x[0],
+                                        x[1],
+                                        (
+                                            (not args.netboxMode and x[0] == netboxOptions[0])
+                                            or (x[0] == args.netboxMode)
+                                        ),
+                                    )
+                                    for x in netboxOptions
+                                ],
+                                extraLabel=BACK_LABEL,
+                            )
+                    else:
+                        netboxMode = 'disabled'
+                    netboxEnabled = bool(netboxMode and (netboxMode != 'disabled'))
+                    if netboxMode == 'remote':
+                        loopBreaker = CountUntilException(MaxAskForValueCount, 'Invalid NetBox URL')
+                        while (len(netboxUrl) <= 1) and loopBreaker.increment():
+                            netboxUrl = InstallerAskForString(
+                                'Enter NetBox connection URL (e.g., https://netbox.example.org)',
+                                default=args.netboxUrl,
+                                extraLabel=BACK_LABEL,
+                            )
+                        InstallerDisplayMessage(
+                            f'You must run auth_setup after {ScriptName} to store NetBox API token.',
+                        )
+
                     netboxLogstashEnrich = netboxEnabled and InstallerYesOrNo(
                         'Should Malcolm enrich network traffic using NetBox?',
                         default=args.netboxLogstashEnrich,
@@ -2087,9 +2082,6 @@ class Installer(object):
                         eprint(f"Creating {envFile} from {envExampleFile}")
                     shutil.copyfile(envExampleFile, envFile)
 
-        # define environment variables to be set in .env files
-        EnvValue = namedtuple("EnvValue", ["provided", "envFile", "key", "value"], rename=False)
-
         EnvValues = [
             # Whether or not Arkime is allowed to delete uploaded/captured PCAP
             EnvValue(
@@ -2182,20 +2174,6 @@ class Installer(object):
                 'INDEX_MANAGEMENT_SEGMENTS',
                 indexManagementOptimizeSessionSegments,
             ),
-            # authentication method: basic (true), ldap (false) or no_authentication
-            EnvValue(
-                True,
-                os.path.join(args.configDir, 'auth-common.env'),
-                'NGINX_BASIC_AUTH',
-                allowedAuthModes.get(authMode, TrueOrFalseNoQuote(True)),
-            ),
-            # StartTLS vs. ldap:// or ldaps://
-            EnvValue(
-                True,
-                os.path.join(args.configDir, 'auth-common.env'),
-                'NGINX_LDAP_TLS_STUNNEL',
-                TrueOrFalseNoQuote(('ldap' in authMode.lower()) and ldapStartTLS),
-            ),
             # Logstash host and port
             EnvValue(
                 True,
@@ -2216,13 +2194,6 @@ class Installer(object):
                 os.path.join(args.configDir, 'dashboards-helper.env'),
                 'DASHBOARDS_DARKMODE',
                 TrueOrFalseNoQuote(dashboardsDarkMode),
-            ),
-            # OpenSearch index state management snapshot compression
-            EnvValue(
-                True,
-                os.path.join(args.configDir, 'dashboards-helper.env'),
-                'ISM_SNAPSHOT_COMPRESSED',
-                TrueOrFalseNoQuote(indexSnapshotCompressed),
             ),
             # delete based on index pattern size
             EnvValue(
@@ -2369,19 +2340,19 @@ class Installer(object):
                 'NETBOX_DEFAULT_SITE',
                 netboxSiteName,
             ),
-            # enable/disable netbox
+            # netbox mode
             EnvValue(
                 True,
                 os.path.join(args.configDir, 'netbox-common.env'),
-                'NETBOX_DISABLED',
-                TrueOrFalseNoQuote(not netboxEnabled),
+                'NETBOX_MODE',
+                netboxMode,
             ),
-            # enable/disable netbox (postgres)
+            # remote netbox URL
             EnvValue(
                 True,
                 os.path.join(args.configDir, 'netbox-common.env'),
-                'NETBOX_POSTGRES_DISABLED',
-                TrueOrFalseNoQuote(not netboxEnabled),
+                'NETBOX_URL',
+                netboxUrl if (netboxMode == 'remote') else '',
             ),
             # HTTPS (nginxSSL=True) vs unencrypted HTTP (nginxSSL=False)
             EnvValue(
@@ -2389,6 +2360,19 @@ class Installer(object):
                 os.path.join(args.configDir, 'nginx.env'),
                 'NGINX_SSL',
                 TrueOrFalseNoQuote(nginxSSL),
+            ),
+            # "off" parameters for IPv4/IPv6 for NGINX resolver
+            EnvValue(
+                True,
+                os.path.join(args.configDir, 'nginx.env'),
+                'NGINX_RESOLVER_IPV4_OFF',
+                TrueOrFalseNoQuote(nginxResolverIpv4Off),
+            ),
+            EnvValue(
+                True,
+                os.path.join(args.configDir, 'nginx.env'),
+                'NGINX_RESOLVER_IPV6_OFF',
+                TrueOrFalseNoQuote(nginxResolverIpv6Off),
             ),
             # OpenSearch primary instance is local vs. remote
             EnvValue(
@@ -2613,6 +2597,13 @@ class Installer(object):
                 'VTOT_API2_KEY',
                 vtotApiKey,
             ),
+            # file scanning via virustotal
+            EnvValue(
+                True,
+                os.path.join(args.configDir, 'zeek.env'),
+                'EXTRACTED_FILE_ENABLE_VTOT',
+                TrueOrFalseNoQuote(len(vtotApiKey) > 1),
+            ),
             # file scanning via yara
             EnvValue(
                 True,
@@ -2733,35 +2724,7 @@ class Installer(object):
         ]
 
         # now, go through and modify the provided values in the .env files
-        for val in [v for v in EnvValues if v.provided]:
-            try:
-                touch(val.envFile)
-            except Exception:
-                pass
-
-            try:
-                oldDotEnvVersion = False
-                try:
-                    dotenv_imported.set_key(
-                        val.envFile,
-                        val.key,
-                        str(val.value),
-                        quote_mode='never',
-                        encoding='utf-8',
-                    )
-                except TypeError:
-                    oldDotEnvVersion = True
-
-                if oldDotEnvVersion:
-                    dotenv_imported.set_key(
-                        val.envFile,
-                        val.key,
-                        str(val.value),
-                        quote_mode='never',
-                    )
-
-            except Exception as e:
-                eprint(f"Setting value for {val.key} in {val.envFile} module failed ({type(e).__name__}): {e}")
+        UpdateEnvFiles(EnvValues)
 
         # if any arbitrary extra .env settings were specified, handle those last (e.g., foobar.env:VARIABLE_NAME=value)
         if args.extraSettings:
@@ -2792,39 +2755,20 @@ class Installer(object):
                         )
 
                     else:
-                        if self.debug:
-                            eprint(f"Setting extra value ({extraVar}={extraVal}) in {os.path.basename(extraFile)}")
-
-                        try:
-                            touch(extraFile)
-                        except Exception:
-                            pass
-
-                        try:
-                            oldDotEnvVersion = False
-                            try:
-                                dotenv_imported.set_key(
+                        extraValSuccess = UpdateEnvFiles(
+                            [
+                                EnvValue(
+                                    True,
                                     extraFile,
                                     extraVar,
                                     extraVal,
-                                    quote_mode='never',
-                                    encoding='utf-8',
-                                )
-                            except TypeError:
-                                oldDotEnvVersion = True
-
-                            if oldDotEnvVersion:
-                                dotenv_imported.set_key(
-                                    extraFile,
-                                    extraVar,
-                                    extraVal,
-                                    quote_mode='never',
-                                )
-
-                        except Exception as e:
-                            eprint(
-                                f"Setting extra value for {extraVar} in {extraFile} module failed ({type(e).__name__}): {e}"
-                            )
+                                ),
+                            ]
+                        )
+                    if self.debug:
+                        eprint(
+                            f"Setting extra value ({extraVar}={extraVal}) in {os.path.basename(extraFile)} {'succeeded' if extraValSuccess else 'failed'}"
+                        )
 
         # change ownership of .envs file to match puid/pgid
         if (
@@ -3253,7 +3197,11 @@ class LinuxInstaller(Installer):
         else:
             self.sudoCmd = ["sudo", "-n"]
             err, out = self.run_process(['whoami'], privileged=True)
-            if ((err != 0) or (len(out) == 0) or (out[0] != 'root')) and (not self.configOnly):
+            if (
+                ((err != 0) or (len(out) == 0) or (out[0] != 'root'))
+                and (not self.configOnly)
+                and (self.orchMode is OrchestrationFramework.DOCKER_COMPOSE)
+            ):
                 raise Exception(f'{ScriptName} must be run as root, or {self.sudoCmd} must be available')
 
         # determine command to use to query if a package is installed
@@ -3630,6 +3578,10 @@ class LinuxInstaller(Installer):
     def tweak_system_files(self):
         # make some system configuration changes with permission
 
+        tweakWithAbandon = InstallerYesOrNo(
+            'Apply recommended system tweaks automatically without asking for confirmation?', default=True
+        )
+
         ConfigLines = namedtuple("ConfigLines", ["distros", "filename", "prefix", "description", "lines"], rename=False)
 
         configLinesToAdd = [
@@ -3760,6 +3712,7 @@ class LinuxInstaller(Installer):
         for config in configLinesToAdd:
             if ((len(config.distros) == 0) or (self.codename in config.distros)) and (
                 os.path.isfile(config.filename)
+                or tweakWithAbandon
                 or InstallerYesOrNo(
                     f'\n{config.description}\n{config.filename} does not exist, create it?', default=True
                 )
@@ -3773,9 +3726,12 @@ class LinuxInstaller(Installer):
                     or (not os.path.isfile(config.filename) and (len(config.prefix) == 0))
                     or (
                         (len(list(filter(lambda x: x.startswith(config.prefix), confFileLines))) == 0)
-                        and InstallerYesOrNo(
-                            f'\n{config.description}\n{config.prefix} appears to be missing from {config.filename}, append it?',
-                            default=True,
+                        and (
+                            tweakWithAbandon
+                            or InstallerYesOrNo(
+                                f'\n{config.description}\n{config.prefix} appears to be missing from {config.filename}, append it?',
+                                default=True,
+                            )
                         )
                     )
                 ):
@@ -3796,9 +3752,12 @@ class LinuxInstaller(Installer):
             (grubFileName := '/etc/default/grub')
             and os.path.isfile(grubFileName)
             and (not [line.rstrip('\n') for line in open(grubFileName) if 'cgroup' in line.lower()])
-            and InstallerYesOrNo(
-                f'\ncgroup parameters appear to be missing from {grubFileName}, set them?',
-                default=True,
+            and (
+                tweakWithAbandon
+                or InstallerYesOrNo(
+                    f'\ncgroup parameters appear to be missing from {grubFileName}, set them?',
+                    default=True,
+                )
             )
         ):
             err, out = self.run_process(
@@ -4192,8 +4151,8 @@ def main():
         help='Architecture for container image',
     )
 
-    authencOptionsArgGroup = parser.add_argument_group('Entryption and authentication options')
-    authencOptionsArgGroup.add_argument(
+    netOptionsArgGroup = parser.add_argument_group('Network connectivity options')
+    netOptionsArgGroup.add_argument(
         '--https',
         dest='nginxSSL',
         type=str2bool,
@@ -4203,34 +4162,25 @@ def main():
         default=True,
         help="Require encrypted HTTPS connections",
     )
-    authencOptionsArgGroup.add_argument(
-        '--ldap',
-        dest='authModeLDAP',
+    netOptionsArgGroup.add_argument(
+        '--nginx-resolver-ipv4',
+        dest='nginxResolverIpv4',
+        type=str2bool,
+        metavar="true|false",
+        nargs='?',
+        const=True,
+        default=True,
+        help="Enable IPv4 for nginx resolver directive",
+    )
+    netOptionsArgGroup.add_argument(
+        '--nginx-resolver-ipv6',
+        dest='nginxResolverIpv6',
         type=str2bool,
         metavar="true|false",
         nargs='?',
         const=True,
         default=False,
-        help="Use Lightweight Directory Access Protocol (LDAP)",
-    )
-    authencOptionsArgGroup.add_argument(
-        '--ldap-mode',
-        dest='ldapServerType',
-        required=False,
-        metavar='<openldap|winldap>',
-        type=str,
-        default=None,
-        help='LDAP server compatibility type',
-    )
-    authencOptionsArgGroup.add_argument(
-        '--ldap-start-tls',
-        dest='ldapStartTLS',
-        type=str2bool,
-        metavar="true|false",
-        nargs='?',
-        const=True,
-        default=False,
-        help="Use StartTLS (rather than LDAPS) for LDAP connection security",
+        help="Enable IPv6 for nginx resolver directive",
     )
 
     dockerOptionsArgGroup = parser.add_argument_group('Container options')
@@ -4338,16 +4288,6 @@ def main():
         const=True,
         default=False,
         help="Require SSL certificate validation for communication with primary OpenSearch instance",
-    )
-    opensearchArgGroup.add_argument(
-        '--opensearch-compress-snapshots',
-        dest='indexSnapshotCompressed',
-        type=str2bool,
-        metavar="true|false",
-        nargs='?',
-        const=True,
-        default=False,
-        help="Compress OpenSearch index snapshots",
     )
     opensearchArgGroup.add_argument(
         '--opensearch-secondary',
@@ -4866,13 +4806,21 @@ def main():
     netboxArgGroup = parser.add_argument_group('NetBox options')
     netboxArgGroup.add_argument(
         '--netbox',
-        dest='netboxEnabled',
-        type=str2bool,
-        metavar="true|false",
-        nargs='?',
-        const=True,
-        default=False,
-        help="Run and maintain an instance of NetBox",
+        dest='netboxMode',
+        required=False,
+        metavar='<string>',
+        type=str,
+        default='disabled',
+        help='NetBox mode (disabled, local, remote)',
+    )
+    netboxArgGroup.add_argument(
+        '--netbox-url',
+        dest='netboxUrl',
+        required=False,
+        metavar='<string>',
+        type=str,
+        default='',
+        help='NetBox URL (used only if NetBox mode is \"remote\")',
     )
     netboxArgGroup.add_argument(
         '--netbox-enrich',
@@ -5146,18 +5094,19 @@ def main():
             eprint(f"Malcolm images file: {imageFile}")
 
     if not args.configOnly:
-        if (orchMode is OrchestrationFramework.DOCKER_COMPOSE) and hasattr(installer, 'install_docker'):
-            installer.install_docker()
-        if (orchMode is OrchestrationFramework.DOCKER_COMPOSE) and hasattr(installer, 'install_docker_compose'):
-            installer.install_docker_compose()
-        if hasattr(installer, 'tweak_system_files'):
-            installer.tweak_system_files()
-        if (orchMode is OrchestrationFramework.DOCKER_COMPOSE) and hasattr(installer, 'install_malcolm_files'):
+        if orchMode is OrchestrationFramework.DOCKER_COMPOSE:
+            if hasattr(installer, 'install_docker'):
+                installer.install_docker()
+            if hasattr(installer, 'install_docker_compose'):
+                installer.install_docker_compose()
+            if hasattr(installer, 'tweak_system_files'):
+                installer.tweak_system_files()
+        if hasattr(installer, 'install_malcolm_files'):
             _, installPath = installer.install_malcolm_files(malcolmFile, args.configDir is None)
 
     # if .env directory is unspecified, use the default ./config directory
     if args.configDir is None:
-        args.configDir = os.path.join(MalcolmPath, 'config')
+        args.configDir = os.path.join(GetMalcolmPath(), 'config')
     try:
         os.makedirs(args.configDir)
     except OSError as exc:
@@ -5179,7 +5128,7 @@ def main():
                 f'{ScriptName} requires the official Python client library for kubernetes for {orchMode} mode'
             )
 
-    if (
+    if ((not installPath) or (not os.path.isdir(installPath))) and (
         args.configOnly
         or (args.configFile and os.path.isfile(args.configFile))
         or (args.configDir and os.path.isdir(args.configDir))

@@ -1355,7 +1355,7 @@ def main():
                     # get list of tags for logs forwarded to Malcolm
                     lines = previous_config_values[Constants.MALCOLM_EXTRA_TAGS].split(",")
                     code, lines = d.editbox_str(
-                        "\n".join(list(filter(None, list(set(lines))))), title=Constants.MSG_CONFIG_EXTRA_TAGS
+                        "\n".join(list(filter(None, list(dict.fromkeys(lines))))), title=Constants.MSG_CONFIG_EXTRA_TAGS
                     )
                     if code != Dialog.OK:
                         raise CancelledError
@@ -1366,7 +1366,7 @@ def main():
                             [
                                 tag
                                 for tag in list(
-                                    set(
+                                    dict.fromkeys(
                                         filter(
                                             None,
                                             [re.sub(r'[^A-Za-z0-9 ._-]', '', x.strip()) for x in lines.split('\n')],

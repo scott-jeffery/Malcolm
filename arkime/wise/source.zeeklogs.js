@@ -37,13 +37,14 @@ class MalcolmSource extends WISESource {
       "destination.bytes",
       "destination.device.cluster",
       "destination.device.device_type",
+      "destination.device.discovered",
+      "destination.device.uninventoried",
       "destination.device.id",
       "destination.device.manufacturer",
       "destination.device.name",
       "destination.device.role",
       "destination.device.service",
       "destination.device.site",
-      "destination.device.url",
       "destination.domain",
       "destination.geo.city_name",
       "destination.geo.country_iso_code",
@@ -59,7 +60,6 @@ class MalcolmSource extends WISESource {
       "destination.segment.name",
       "destination.segment.site",
       "destination.segment.tenant",
-      "destination.segment.url",
       "dns.answers.class",
       "dns.answers.data",
       "dns.answers.name",
@@ -145,6 +145,8 @@ class MalcolmSource extends WISESource {
       "related.device_id",
       "related.device_name",
       "related.device_type",
+      "related.discovered",
+      "related.uninventoried",
       "related.hash",
       "related.hosts",
       "related.ip",
@@ -170,13 +172,14 @@ class MalcolmSource extends WISESource {
       "source.bytes",
       "source.device.cluster",
       "source.device.device_type",
+      "source.device.discovered",
+      "source.device.uninventoried",
       "source.device.id",
       "source.device.manufacturer",
       "source.device.name",
       "source.device.role",
       "source.device.service",
       "source.device.site",
-      "source.device.url",
       "source.geo.city_name",
       "source.geo.country_iso_code",
       "source.geo.country_name",
@@ -193,7 +196,6 @@ class MalcolmSource extends WISESource {
       "source.segment.name",
       "source.segment.site",
       "source.segment.tenant",
-      "source.segment.url",
       "suricata.action",
       "suricata.alert.action",
       "suricata.alert.metadata.created_at",
@@ -2671,6 +2673,10 @@ class MalcolmSource extends WISESource {
       "zeek.s7comm.rosctr_name",
       "zeek.s7comm.subfunction_code",
       "zeek.s7comm.subfunction_name",
+      "zeek.s7comm_known_devices.automation_system_name",
+      "zeek.s7comm_known_devices.module_name",
+      "zeek.s7comm_known_devices.plant_name",
+      "zeek.s7comm_known_devices.module_serial",
       "zeek.s7comm_plus.function_code",
       "zeek.s7comm_plus.function_name",
       "zeek.s7comm_plus.opcode",
@@ -3095,10 +3101,6 @@ class MalcolmSource extends WISESource {
       "zeek.x509.san_uri"
     ];
     var allFieldsStr = allFields.join(',');
-
-    // add URL link for NetBox URLs
-    var netboxUrlStr = allFields.filter(value => /^(source|destination)\.(device|segment)\.url$/i.test(value)).join(',');
-    this.api.addValueAction("malcolm_netbox_url", { name: "NetBox", url: '%TEXT%', fields: netboxUrlStr });
 
     // add URL link for assigned transport protocol numbers
     var protoFieldsStr = allFields.filter(value => /^(network\.transport|ip\.protocol)$/i.test(value)).join(',');

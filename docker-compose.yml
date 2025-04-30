@@ -2,7 +2,7 @@
 
 services:
   opensearch:
-    image: ghcr.io/idaholab/malcolm/opensearch:25.02.0
+    image: ghcr.io/idaholab/malcolm/opensearch:25.04.0
     # Technically the "hedgehog" profile doesn't have OpenSearch, but in that case
     #   OPENSEARCH_PRIMARY will be set to remote, which means the container will
     #   start but not actually run OpenSearch. It's included in both profiles to
@@ -76,7 +76,7 @@ services:
       retries: 3
       start_period: 180s
   dashboards-helper:
-    image: ghcr.io/idaholab/malcolm/dashboards-helper:25.02.0
+    image: ghcr.io/idaholab/malcolm/dashboards-helper:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -94,6 +94,7 @@ services:
     - ./config/process.env
     - ./config/ssl.env
     - ./config/opensearch.env
+    - ./config/netbox-common.env
     - ./config/dashboards.env
     - ./config/dashboards-helper.env
     environment:
@@ -126,7 +127,7 @@ services:
       retries: 3
       start_period: 30s
   dashboards:
-    image: ghcr.io/idaholab/malcolm/dashboards:25.02.0
+    image: ghcr.io/idaholab/malcolm/dashboards:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -169,7 +170,7 @@ services:
       retries: 3
       start_period: 210s
   logstash:
-    image: ghcr.io/idaholab/malcolm/logstash-oss:25.02.0
+    image: ghcr.io/idaholab/malcolm/logstash-oss:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -250,13 +251,13 @@ services:
       target: /certs/server.key
       read_only: true
     healthcheck:
-      test: ["CMD", "/usr/local/bin/container_health.sh"]
+      test: ["CMD", "/usr/local/bin/container_health.sh", "-s"]
       interval: 30s
       timeout: 15s
       retries: 3
       start_period: 600s
   filebeat:
-    image: ghcr.io/idaholab/malcolm/filebeat-oss:25.02.0
+    image: ghcr.io/idaholab/malcolm/filebeat-oss:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -329,7 +330,7 @@ services:
       retries: 3
       start_period: 60s
   arkime:
-    image: ghcr.io/idaholab/malcolm/arkime:25.02.0
+    image: ghcr.io/idaholab/malcolm/arkime:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -398,7 +399,7 @@ services:
       retries: 3
       start_period: 210s
   arkime-live:
-    image: ghcr.io/idaholab/malcolm/arkime:25.02.0
+    image: ghcr.io/idaholab/malcolm/arkime:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -467,7 +468,7 @@ services:
       retries: 3
       start_period: 210s
   zeek:
-    image: ghcr.io/idaholab/malcolm/zeek:25.02.0
+    image: ghcr.io/idaholab/malcolm/zeek:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -530,7 +531,7 @@ services:
       retries: 3
       start_period: 60s
   zeek-live:
-    image: ghcr.io/idaholab/malcolm/zeek:25.02.0
+    image: ghcr.io/idaholab/malcolm/zeek:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -591,7 +592,7 @@ services:
       retries: 3
       start_period: 60s
   suricata:
-    image: ghcr.io/idaholab/malcolm/suricata:25.02.0
+    image: ghcr.io/idaholab/malcolm/suricata:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -647,7 +648,7 @@ services:
       retries: 3
       start_period: 120s
   suricata-live:
-    image: ghcr.io/idaholab/malcolm/suricata:25.02.0
+    image: ghcr.io/idaholab/malcolm/suricata:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -707,7 +708,7 @@ services:
       retries: 3
       start_period: 120s
   file-monitor:
-    image: ghcr.io/idaholab/malcolm/file-monitor:25.02.0
+    image: ghcr.io/idaholab/malcolm/file-monitor:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -759,7 +760,7 @@ services:
       retries: 3
       start_period: 60s
   pcap-capture:
-    image: ghcr.io/idaholab/malcolm/pcap-capture:25.02.0
+    image: ghcr.io/idaholab/malcolm/pcap-capture:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -808,7 +809,7 @@ services:
       retries: 3
       start_period: 60s
   pcap-monitor:
-    image: ghcr.io/idaholab/malcolm/pcap-monitor:25.02.0
+    image: ghcr.io/idaholab/malcolm/pcap-monitor:25.04.0
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -859,7 +860,7 @@ services:
       retries: 3
       start_period: 90s
   upload:
-    image: ghcr.io/idaholab/malcolm/file-upload:25.02.0
+    image: ghcr.io/idaholab/malcolm/file-upload:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -898,7 +899,7 @@ services:
       retries: 3
       start_period: 60s
   htadmin:
-    image: ghcr.io/idaholab/malcolm/htadmin:25.02.0
+    image: ghcr.io/idaholab/malcolm/htadmin:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -915,6 +916,7 @@ services:
     env_file:
     - ./config/process.env
     - ./config/ssl.env
+    - ./config/auth.env
     - ./config/auth-common.env
     environment:
       VIRTUAL_HOST: 'htadmin.malcolm.local'
@@ -925,11 +927,6 @@ services:
       source: ./nginx/ca-trust
       target: /var/local/ca-trust
       read_only: true
-    - type: bind
-      bind:
-        create_host_path: false
-      source: ./htadmin/config.ini
-      target: /var/www/htadmin/config/config.ini
     - type: bind
       bind:
         create_host_path: false
@@ -947,7 +944,7 @@ services:
       retries: 3
       start_period: 60s
   freq:
-    image: ghcr.io/idaholab/malcolm/freq:25.02.0
+    image: ghcr.io/idaholab/malcolm/freq:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -981,7 +978,7 @@ services:
       retries: 3
       start_period: 60s
   netbox:
-    image: ghcr.io/idaholab/malcolm/netbox:25.02.0
+    image: ghcr.io/idaholab/malcolm/netbox:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1001,12 +998,12 @@ services:
     - ./config/netbox-common.env
     - ./config/netbox.env
     - ./config/netbox-secret.env
-    - ./config/netbox-postgres.env
+    - ./config/postgres.env
     - ./config/redis.env
     environment:
       VIRTUAL_HOST: 'netbox.malcolm.local'
     depends_on:
-    - netbox-postgres
+    - postgres
     - redis
     - redis-cache
     volumes:
@@ -1045,8 +1042,8 @@ services:
       timeout: 15s
       retries: 3
       start_period: 120s
-  netbox-postgres:
-    image: ghcr.io/idaholab/malcolm/postgresql:25.02.0
+  postgres:
+    image: ghcr.io/idaholab/malcolm/postgresql:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1057,16 +1054,16 @@ services:
     restart: "no"
     stdin_open: false
     tty: true
-    hostname: netbox-postgres
+    hostname: postgres
     networks:
     - default
     env_file:
     - ./config/process.env
     - ./config/ssl.env
     - ./config/netbox-common.env
-    - ./config/netbox-postgres.env
+    - ./config/postgres.env
     environment:
-      VIRTUAL_HOST: 'netbox-postgres.malcolm.local'
+      VIRTUAL_HOST: 'postgres.malcolm.local'
     volumes:
     - type: bind
       bind:
@@ -1077,7 +1074,7 @@ services:
     - type: bind
       bind:
         create_host_path: false
-      source: ./netbox/postgres
+      source: ./postgres
       target: /var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "/usr/local/bin/container_health.sh"]
@@ -1086,7 +1083,7 @@ services:
       retries: 3
       start_period: 45s
   redis:
-    image: ghcr.io/idaholab/malcolm/redis:25.02.0
+    image: ghcr.io/idaholab/malcolm/redis:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1130,7 +1127,7 @@ services:
       retries: 3
       start_period: 45s
   redis-cache:
-    image: ghcr.io/idaholab/malcolm/redis:25.02.0
+    image: ghcr.io/idaholab/malcolm/redis:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1169,7 +1166,7 @@ services:
       retries: 3
       start_period: 45s
   api:
-    image: ghcr.io/idaholab/malcolm/api:25.02.0
+    image: ghcr.io/idaholab/malcolm/api:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1189,6 +1186,9 @@ services:
     - ./config/ssl.env
     - ./config/upload-common.env
     - ./config/dashboards.env
+    - ./config/arkime.env
+    - ./config/netbox-common.env
+    - ./config/netbox-secret.env
     - ./config/opensearch.env
     environment:
       VIRTUAL_HOST: 'api.malcolm.local'
@@ -1211,8 +1211,45 @@ services:
       timeout: 15s
       retries: 3
       start_period: 60s
+  keycloak:
+    image: ghcr.io/idaholab/malcolm/keycloak:25.04.0
+    profiles: ["malcolm"]
+    logging:
+      driver: local
+      options:
+        max-size: 200m
+        max-file: 2
+        compress: "false"
+    restart: "no"
+    stdin_open: false
+    tty: true
+    hostname: keycloak
+    networks:
+    - default
+    env_file:
+    - ./config/process.env
+    - ./config/ssl.env
+    - ./config/auth-common.env
+    - ./config/postgres.env
+    - ./config/keycloak.env
+    command:
+    - /opt/keycloak/bin/kc.sh
+    - start
+    volumes:
+    - type: bind
+      bind:
+        create_host_path: false
+      source: ./nginx/ca-trust
+      target: /var/local/ca-trust
+      read_only: true
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/container_health.sh"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 45s
   nginx-proxy:
-    image: ghcr.io/idaholab/malcolm/nginx-proxy:25.02.0
+    image: ghcr.io/idaholab/malcolm/nginx-proxy:25.04.0
     profiles: ["malcolm"]
     logging:
       driver: local
@@ -1231,6 +1268,9 @@ services:
     - ./config/ssl.env
     - ./config/opensearch.env
     - ./config/dashboards.env
+    - ./config/arkime.env
+    - ./config/keycloak.env
+    - ./config/netbox-common.env
     - ./config/auth-common.env
     - ./config/nginx.env
     depends_on:
@@ -1239,6 +1279,7 @@ services:
     - dashboards
     - file-monitor
     - htadmin
+    - keycloak
     - netbox
     - upload
     ports:
