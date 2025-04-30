@@ -30,7 +30,7 @@ spec:
     spec:
       containers:
       - name: arkime-container
-        image: ghcr.io/idaholab/malcolm/arkime:25.03.0
+        image: ghcr.io/idaholab/malcolm/arkime:25.02.0
         imagePullPolicy: Always
         stdin: false
         tty: true
@@ -78,9 +78,12 @@ spec:
             name: arkime-rules-volume
           - mountPath: "/data/pcap"
             name: arkime-pcap-volume
+          - mountPath: /opt/arkime/etc/wise.ini
+            name: wise-file-volume
+            subPath: wise.ini  
       initContainers:
       - name: arkime-dirinit-container
-        image: ghcr.io/idaholab/malcolm/dirinit:25.03.0
+        image: ghcr.io/idaholab/malcolm/dirinit:25.02.0
         imagePullPolicy: Always
         stdin: false
         tty: true

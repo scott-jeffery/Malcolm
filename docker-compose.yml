@@ -2,13 +2,12 @@
 
 services:
   opensearch:
-    image: ghcr.io/idaholab/malcolm/opensearch:25.03.0
+    image: ghcr.io/idaholab/malcolm/opensearch:25.02.0
     # Technically the "hedgehog" profile doesn't have OpenSearch, but in that case
     #   OPENSEARCH_PRIMARY will be set to remote, which means the container will
     #   start but not actually run OpenSearch. It's included in both profiles to
     #   satisfy some other containers' depends_on.
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -77,9 +76,8 @@ services:
       retries: 3
       start_period: 180s
   dashboards-helper:
-    image: ghcr.io/idaholab/malcolm/dashboards-helper:25.03.0
+    image: ghcr.io/idaholab/malcolm/dashboards-helper:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -128,9 +126,8 @@ services:
       retries: 3
       start_period: 30s
   dashboards:
-    image: ghcr.io/idaholab/malcolm/dashboards:25.03.0
+    image: ghcr.io/idaholab/malcolm/dashboards:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -172,9 +169,8 @@ services:
       retries: 3
       start_period: 210s
   logstash:
-    image: ghcr.io/idaholab/malcolm/logstash-oss:25.03.0
+    image: ghcr.io/idaholab/malcolm/logstash-oss:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -209,7 +205,7 @@ services:
     depends_on:
     - opensearch
     ports:
-    - 127.0.0.1:5044:5044
+    - 0.0.0.0:5044:5044/tcp
     volumes:
     - type: bind
       bind:
@@ -260,9 +256,8 @@ services:
       retries: 3
       start_period: 600s
   filebeat:
-    image: ghcr.io/idaholab/malcolm/filebeat-oss:25.03.0
+    image: ghcr.io/idaholab/malcolm/filebeat-oss:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -284,7 +279,7 @@ services:
     - ./config/beats-common.env
     - ./config/filebeat.env
     ports:
-    - 127.0.0.1:5045:5045
+    - 0.0.0.0:5045:5045/tcp
     volumes:
     - nginx-log-path:/nginx:ro
     - type: bind
@@ -334,9 +329,8 @@ services:
       retries: 3
       start_period: 60s
   arkime:
-    image: ghcr.io/idaholab/malcolm/arkime:25.03.0
+    image: ghcr.io/idaholab/malcolm/arkime:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -390,6 +384,11 @@ services:
     - type: bind
       bind:
         create_host_path: false
+      source: ./arkime/etc/wise.ini
+      target: /opt/arkime/etc/wise.ini
+    - type: bind
+      bind:
+        create_host_path: false
       source: ./pcap
       target: /data/pcap
     healthcheck:
@@ -399,9 +398,8 @@ services:
       retries: 3
       start_period: 210s
   arkime-live:
-    image: ghcr.io/idaholab/malcolm/arkime:25.03.0
+    image: ghcr.io/idaholab/malcolm/arkime:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -469,9 +467,8 @@ services:
       retries: 3
       start_period: 210s
   zeek:
-    image: ghcr.io/idaholab/malcolm/zeek:25.03.0
+    image: ghcr.io/idaholab/malcolm/zeek:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -533,9 +530,8 @@ services:
       retries: 3
       start_period: 60s
   zeek-live:
-    image: ghcr.io/idaholab/malcolm/zeek:25.03.0
+    image: ghcr.io/idaholab/malcolm/zeek:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -595,9 +591,8 @@ services:
       retries: 3
       start_period: 60s
   suricata:
-    image: ghcr.io/idaholab/malcolm/suricata:25.03.0
+    image: ghcr.io/idaholab/malcolm/suricata:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -652,9 +647,8 @@ services:
       retries: 3
       start_period: 120s
   suricata-live:
-    image: ghcr.io/idaholab/malcolm/suricata:25.03.0
+    image: ghcr.io/idaholab/malcolm/suricata:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -713,9 +707,8 @@ services:
       retries: 3
       start_period: 120s
   file-monitor:
-    image: ghcr.io/idaholab/malcolm/file-monitor:25.03.0
+    image: ghcr.io/idaholab/malcolm/file-monitor:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -766,9 +759,8 @@ services:
       retries: 3
       start_period: 60s
   pcap-capture:
-    image: ghcr.io/idaholab/malcolm/pcap-capture:25.03.0
+    image: ghcr.io/idaholab/malcolm/pcap-capture:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -816,9 +808,8 @@ services:
       retries: 3
       start_period: 60s
   pcap-monitor:
-    image: ghcr.io/idaholab/malcolm/pcap-monitor:25.03.0
+    image: ghcr.io/idaholab/malcolm/pcap-monitor:25.02.0
     profiles: ["malcolm", "hedgehog"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -868,9 +859,8 @@ services:
       retries: 3
       start_period: 90s
   upload:
-    image: ghcr.io/idaholab/malcolm/file-upload:25.03.0
+    image: ghcr.io/idaholab/malcolm/file-upload:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -889,8 +879,6 @@ services:
     - ./config/auth.env
     environment:
       VIRTUAL_HOST: 'upload.malcolm.local'
-    ports:
-    - 127.0.0.1:8022:22
     volumes:
     - type: bind
       bind:
@@ -910,9 +898,8 @@ services:
       retries: 3
       start_period: 60s
   htadmin:
-    image: ghcr.io/idaholab/malcolm/htadmin:25.03.0
+    image: ghcr.io/idaholab/malcolm/htadmin:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -960,9 +947,8 @@ services:
       retries: 3
       start_period: 60s
   freq:
-    image: ghcr.io/idaholab/malcolm/freq:25.03.0
+    image: ghcr.io/idaholab/malcolm/freq:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -995,9 +981,8 @@ services:
       retries: 3
       start_period: 60s
   netbox:
-    image: ghcr.io/idaholab/malcolm/netbox:25.03.0
+    image: ghcr.io/idaholab/malcolm/netbox:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -1061,9 +1046,8 @@ services:
       retries: 3
       start_period: 120s
   netbox-postgres:
-    image: ghcr.io/idaholab/malcolm/postgresql:25.03.0
+    image: ghcr.io/idaholab/malcolm/postgresql:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -1102,9 +1086,8 @@ services:
       retries: 3
       start_period: 45s
   redis:
-    image: ghcr.io/idaholab/malcolm/redis:25.03.0
+    image: ghcr.io/idaholab/malcolm/redis:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -1147,9 +1130,8 @@ services:
       retries: 3
       start_period: 45s
   redis-cache:
-    image: ghcr.io/idaholab/malcolm/redis:25.03.0
+    image: ghcr.io/idaholab/malcolm/redis:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -1187,9 +1169,8 @@ services:
       retries: 3
       start_period: 45s
   api:
-    image: ghcr.io/idaholab/malcolm/api:25.03.0
+    image: ghcr.io/idaholab/malcolm/api:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -1231,9 +1212,8 @@ services:
       retries: 3
       start_period: 60s
   nginx-proxy:
-    image: ghcr.io/idaholab/malcolm/nginx-proxy:25.03.0
+    image: ghcr.io/idaholab/malcolm/nginx-proxy:25.02.0
     profiles: ["malcolm"]
-    userns_mode: keep-id
     logging:
       driver: local
       options:
@@ -1262,8 +1242,8 @@ services:
     - netbox
     - upload
     ports:
-    - 0.0.0.0:443:443
-    - 127.0.0.1:9200:9200
+    - 0.0.0.0:443:443/tcp
+    - 0.0.0.0:9200:9200/tcp
     volumes:
     - nginx-log-path:/var/log/nginx
     - type: bind
