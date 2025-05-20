@@ -152,6 +152,7 @@ RUN export DEBARCH=$(dpkg --print-architecture) && \
     mkdir -p "${ARKIME_DIR}"/plugins "${ARKIME_DIR}"/rules && \
       curl -fsSL -o "${ARKIME_DIR}/plugins/ja4plus.${DEBARCH}.so" "$(echo "${ARKIME_JA4_SO_URL}" | sed "s/XXX/${DEBARCH}/g")" && \
       chmod 755 "${ARKIME_DIR}/plugins/ja4plus.${DEBARCH}.so" && \
+    mkdir -p "${ARKIME_DIR}"/wiseini && \
     python3 -m pip install --break-system-packages --no-compile --no-cache-dir -r /usr/local/src/requirements.txt && \
     ln -sfr $ARKIME_DIR/bin/npm /usr/local/bin/npm && \
       ln -sfr $ARKIME_DIR/bin/node /usr/local/bin/node && \
@@ -178,7 +179,6 @@ ADD --chmod=755 container-health-scripts/arkime.sh /usr/local/bin/container_heal
 ADD arkime/scripts /usr/local/bin/
 ADD arkime/etc $ARKIME_DIR/etc/
 ADD arkime/wisesample $ARKIME_DIR/wisesample/
-ADD arkime/wiseini $ARKIME_DIR/wiseini/
 ADD --chmod=644 arkime/rules/*.yml $ARKIME_DIR/rules/
 ADD --chmod=644 arkime/wise/source.*.js $ARKIME_DIR/wiseService/
 
