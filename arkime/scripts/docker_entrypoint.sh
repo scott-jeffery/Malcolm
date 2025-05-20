@@ -12,7 +12,7 @@ ARKIME_DIR=${ARKIME_DIR:-"/opt/arkime"}
 ARKIME_RULES_DIR=${ARKIME_RULES_DIR:-"/opt/arkime/rules"}
 ARKIME_LUA_DIR=${ARKIME_LUA_DIR:-"/opt/arkime/lua"}
 ARKIME_CONFIG_FILE="${ARKIME_DIR}"/etc/config.ini
-WISE_CONFIG_FILE="${ARKIME_DIR}"/wiseini/wiseini.ini
+WISE_CONFIG_FILE="${ARKIME_DIR}"/wiseini/wise.ini
 ARKIME_PASSWORD_SECRET=${ARKIME_PASSWORD_SECRET:-"Malcolm"}
 ARKIME_FREESPACEG=${ARKIME_FREESPACEG:-"10%"}
 ARKIME_ROTATE_INDEX=${ARKIME_ROTATE_INDEX:-"daily"}
@@ -203,7 +203,7 @@ fi
 # $ARKIME_DUR/wiseini/ will be a persistent volume when run under Kubernetes.
 # This allows changes to persist when the wise application edits its own ini file at runtime.
 if [[ -r "${ARKIME_DIR}"/wisesample/wise.ini ]]; then
-  cp "${ARKIME_DIR}"/wisesample/wise.ini "${ARKIME_CONFIG_FILE}"
+  cp "${ARKIME_DIR}"/wisesample/wise.ini "${WISE_CONFIG_FILE}"
 fi
 
 unset OPENSEARCH_URL_FINAL
