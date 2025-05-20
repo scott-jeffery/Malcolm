@@ -178,6 +178,7 @@ ADD --chmod=755 container-health-scripts/arkime.sh /usr/local/bin/container_heal
 ADD arkime/scripts /usr/local/bin/
 ADD arkime/etc $ARKIME_DIR/etc/
 ADD arkime/wisesample $ARKIME_DIR/wisesample/
+ADD arkime/wiseini $ARKIME_DIR/wiseini/
 ADD --chmod=644 arkime/rules/*.yml $ARKIME_DIR/rules/
 ADD --chmod=644 arkime/wise/source.*.js $ARKIME_DIR/wiseService/
 
