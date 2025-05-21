@@ -199,11 +199,12 @@ fi
 
 # A sample wise.ini file is baked into the container image by the Dockerfile at $ARKIME_DIR/wisesample/
 # After the container is booted we copy wise.ini from $ARMIKE_DIR/wisesample/ to $ARKIME_DIR/wiseini/
-# $ARKIME_DIR/wiseini/ will either be a R/W mounted dir, when run under Docker, or
+# $ARKIME_DIR/wiseini/wise.ini will either be a R/W mounted file, when run under Docker, or
 # $ARKIME_DUR/wiseini/ will be a persistent volume when run under Kubernetes.
 # This allows changes to persist when the wise application edits its own ini file at runtime.
 if [[ -r "${ARKIME_DIR}"/wisesample/wise.ini ]]; then
   cp "${ARKIME_DIR}"/wisesample/wise.ini "${WISE_CONFIG_FILE}"
+  chown -fR "$PUSER":"$PUSER" "${ARKIME_DIR}"/wiseini
 fi
 
 unset OPENSEARCH_URL_FINAL
