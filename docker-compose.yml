@@ -330,7 +330,8 @@ services:
       retries: 3
       start_period: 60s
   arkime:
-    image: ghcr.io/idaholab/malcolm/arkime:25.04.0
+    # image: ghcr.io/scott-jeffery/idaholab/malcolm/arkime:25.04.0
+    image: ghcr.io/scott-jeffery/malcolm/arkime:modify_arkime_container
     profiles: ["malcolm", "hedgehog"]
     logging:
       driver: local
@@ -385,8 +386,8 @@ services:
     - type: bind
       bind:
         create_host_path: false
-      source: ./arkime/etc/wise.ini
-      target: /opt/arkime/etc/wise.ini
+      source: ./arkime/wiseini/wise.ini
+      target: /opt/arkime/wiseini/wise.ini
     - type: bind
       bind:
         create_host_path: false

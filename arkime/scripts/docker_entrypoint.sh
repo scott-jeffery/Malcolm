@@ -26,7 +26,7 @@ NODE_NAME=${PCAP_NODE_NAME:-malcolm}
 ARKIME_EXPOSE_WISE_GUI=${ARKIME_EXPOSE_WISE_GUI-"false"}
 ARKIME_ALLOW_WISE_GUI_CONFIG=${ARKIME_ALLOW_WISE_GUI_CONFIG-"false"}
 ARKIME_WISE_CONFIG_PIN_CODE=${ARKIME_WISE_CONFIG_PIN_CODE-"WISE2019"}
-ARKIME_WISE_CONFIG_FILE="${ARKIME_DIR}"/etc/wise.ini
+ARKIME_WISE_CONFIG_FILE="${ARKIME_DIR}"/wiseini/wise.ini
 ARKIME_WISE_SERVICE_SCRIPT=/usr/local/bin/wise_service.sh
 
 
@@ -201,6 +201,17 @@ if [[ ! -f "${ARKIME_CONFIG_FILE}" ]] && [[ -r "${ARKIME_DIR}"/etc/config.orig.i
     [[ -n ${PUID} ]] && chown -f ${PUID} "${ARKIME_CONFIG_FILE}" || true
     [[ -n ${PGID} ]] && chown -f :${PGID} "${ARKIME_CONFIG_FILE}" || true
 fi 
+
+# An example wise.ini file is baked into the container image by the Dockerfile at $ARKIME_DIR/etc/wise.ini.example
+# After the container is booted we copy wise.ini.example from $ARMIKE_DIR/etc/ to $ARKIME_DIR/wiseini/
+# $ARKIME_DIR/wiseini/wise.ini will either be a R/W mounted file, when run under Docker Compose or
+# $ARKIME_DUR/wiseini/ will be a persistent volume when run under Kubernetes.
+# This allows changes to persist when the wise application edits its own ini file at runtime.
+if [[ -r "${ARKIME_DIR}"/etc/wise.ini.example ]]; then
+  cp "${ARKIME_DIR}"/etc/wise.ini.example "${ARKIME_WISE_CONFIG_FILE}"
+  chown -fR "$PUSER":"$PUSER" "${ARKIME_DIR}"/wiseini
+fi
+
 if [[ ${ARKIME_EXPOSE_WISE_GUI}  == "true" ]]; then
   sed -i "s|^\(elasticsearch=\).*|\1"${OPENSEARCH_URL_FINAL}"|" "${ARKIME_WISE_CONFIG_FILE}"
   sed -i "s|^\(wiseHost=\).*|\1""0.0.0.0""|" "${ARKIME_WISE_CONFIG_FILE}"
