@@ -149,9 +149,10 @@ RUN export DEBARCH=$(dpkg --print-architecture) && \
       curl -fsSL -o ./arkime.deb "$(echo "${ARKIME_DEB_URL}" | sed "s/XXX/${DEBARCH}/g")" && \
       dpkg -i /tmp/arkime.deb && \
       rm -f ${ARKIME_DIR}/etc/*.systemd.service && \
-      mkdir -p "${ARKIME_DIR}"/plugins "${ARKIME_DIR}"/rules && \
+    mkdir -p "${ARKIME_DIR}"/plugins "${ARKIME_DIR}"/rules && \
       curl -fsSL -o "${ARKIME_DIR}/plugins/ja4plus.${DEBARCH}.so" "$(echo "${ARKIME_JA4_SO_URL}" | sed "s/XXX/${DEBARCH}/g")" && \
       chmod 755 "${ARKIME_DIR}/plugins/ja4plus.${DEBARCH}.so" && \
+    mkdir -p "${ARKIME_DIR}"/wiseini && \
     python3 -m pip install --break-system-packages --no-compile --no-cache-dir -r /usr/local/src/requirements.txt && \
     ln -sfr $ARKIME_DIR/bin/npm /usr/local/bin/npm && \
       ln -sfr $ARKIME_DIR/bin/node /usr/local/bin/node && \
